@@ -1,231 +1,493 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>WinnerPhoto - Editor de Fotos</title>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons " rel="stylesheet">
+
+  <!-- Fabric.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js "></script>
+
+  <!-- Google APIs -->
   <script src="https://apis.google.com/js/api.js "></script>
   <script src="https://accounts.google.com/gsi/client " async defer></script>
+
+  <!-- Material Icons (Google Fonts) -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons " rel="stylesheet">
+
   <style>
     :root {
-      --lead-gray: #4A4A4A; --dark-lead-gray: #3A3A3A; --light-lead-gray: #606060;
-      --olive-green: #6B8E23; --dark-olive-green: #556B2F;
-      --white-text: #F0F0F0; --border-color: #707070; --panel-bg: #333333;
-      --input-bg: #505050; --header-height: 60px;
+      --lead-gray: #4A4A4A;
+      --dark-lead-gray: #3A3A3A;
+      --light-lead-gray: #606060;
+      --olive-green: #6B8E23;
+      --dark-olive-green: #556B2F;
+      --white-text: #F0F0F0;
+      --border-color: #707070;
+      --panel-bg: #333333;
+      --input-bg: #505050;
+      --header-height: 60px;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: var(--lead-gray); color: var(--white-text);
       display: flex; flex-direction: column; height: 100vh; overflow: hidden;
     }
+
     .app-header {
-      height: var(--header-height); background-color: var(--dark-lead-gray);
+      height: var(--header-height);
+      background-color: var(--dark-lead-gray);
       display: flex; align-items: center; padding: 0 20px;
-      border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+      border-bottom: 1px solid var(--border-color); flex-shrink: 0; position: relative;
     }
+
     .logo {
-      display: flex; align-items: center; gap: 10px; color: var(--olive-green);
-      font-size: 1.5em; font-weight: bold; margin-right: auto;
+      display: flex; align-items: center; gap: 10px;
+      color: var(--olive-green); font-size: 1.5em; font-weight: bold;
+      margin-right: auto;
     }
+
+    .logo svg {
+      width: 30px; height: 30px; fill: currentColor;
+    }
+
     .header-actions {
       display: flex; gap: 10px;
     }
+
     .header-button-group {
       position: relative;
     }
-    .header-actions button, .dropdown-menu button {
-      background-color: var(--olive-green); color: var(--white-text); border: none;
-      padding: 8px 15px; border-radius: 4px; cursor: pointer; font-size: 0.9em;
-      display: flex; align-items: center; gap: 6px;
+
+    .header-actions button,
+    .dropdown-menu button {
+      background-color: var(--olive-green); color: var(--white-text);
+      border: none; padding: 8px 15px; border-radius: 4px;
+      cursor: pointer; font-size: 0.9em; display: flex; align-items: center; gap: 6px;
     }
-    .header-actions button:hover, .dropdown-menu button:hover {
+
+    .header-actions button:hover,
+    .dropdown-menu button:hover {
       background-color: var(--dark-olive-green);
     }
-    .dropdown-menu {
-      display: none; position: absolute; top: calc(100% + 5px); right: 0;
-      background-color: var(--dark-lead-gray); border: 1px solid var(--border-color);
-      border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      z-index: 1001; min-width: 220px; padding: 5px;
+
+    .header-actions button i.material-icons,
+    .dropdown-menu button i.material-icons {
+      font-size: 18px;
     }
+
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 5px);
+      right: 0;
+      background-color: var(--dark-lead-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      z-index: 1001;
+      min-width: 220px;
+      padding: 5px;
+    }
+
     .dropdown-menu button {
       width: 100%; justify-content: flex-start; margin-bottom: 5px;
       background-color: var(--light-lead-gray);
     }
+
     .dropdown-menu button:last-child { margin-bottom: 0; }
-    .dropdown-menu button:hover { background-color: var(--olive-green); }
+
     .dropdown-menu button:disabled {
       background-color: #555; color: #999; cursor: not-allowed;
     }
+
     .dropdown-menu button:disabled i.material-icons {
       color: #999;
     }
+
     .app-container {
-      display: flex; width: 100%; flex-grow: 1; overflow: hidden;
+      display: flex;
+      width: 100%;
+      flex-grow: 1;
+      overflow: hidden;
     }
+
     .main-content-area {
-      display: flex; flex-direction: column; flex-grow: 1; overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+      overflow: hidden;
     }
+
     .sidebar {
-      background-color: var(--dark-lead-gray); padding: 15px; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 20px;
-      scrollbar-width: thin; scrollbar-color: var(--olive-green) var(--light-lead-gray);
+      background-color: var(--dark-lead-gray);
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--olive-green) var(--light-lead-gray);
     }
-    .sidebar::-webkit-scrollbar { width: 8px; }
-    .sidebar::-webkit-scrollbar-track { background: var(--light-lead-gray); }
-    .sidebar::-webkit-scrollbar-thumb { background-color: var(--olive-green); border-radius: 4px; }
-    .left-sidebar { width: 260px; min-width: 260px; }
-    .right-sidebar { width: 240px; min-width: 240px; }
-    .tool-section h4, .right-sidebar > h4, .adjustments-panel h4 {
-      color: var(--olive-green); margin-bottom: 10px; font-size: 0.9em;
-      text-transform: uppercase; letter-spacing: 0.5px;
+
+    .sidebar::-webkit-scrollbar {
+      width: 8px;
     }
-    .tool-btn, .style-btn, .category-btn {
-      background-color: var(--light-lead-gray); color: var(--white-text);
-      border: 1px solid var(--border-color); padding: 8px 12px; margin-bottom: 8px;
-      cursor: pointer; border-radius: 4px; width: 100%; text-align: left;
-      font-size: 0.9em; transition: background-color 0.2s ease, color 0.2s ease;
-      display: flex; align-items: center; gap: 8px;
+
+    .sidebar::-webkit-scrollbar-track {
+      background: var(--light-lead-gray);
     }
-    .tool-btn:hover, .style-btn:hover, .category-btn:hover {
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background-color: var(--olive-green);
+      border-radius: 4px;
+    }
+
+    .left-sidebar {
+      width: 260px;
+      min-width: 260px;
+    }
+
+    .right-sidebar {
+      width: 240px;
+      min-width: 240px;
+    }
+
+    .tool-section h4,
+    .right-sidebar > h4,
+    .adjustments-panel h4 {
+      color: var(--olive-green);
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .tool-btn,
+    .style-btn,
+    .category-btn {
+      background-color: var(--light-lead-gray);
+      color: var(--white-text);
+      border: 1px solid var(--border-color);
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      width: 100%;
+      text-align: left;
+      font-size: 0.9em;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tool-btn:hover,
+    .style-btn:hover,
+    .category-btn:hover {
       background-color: var(--olive-green);
     }
-    .tool-btn.active, .category-btn.active {
-      background-color: var(--olive-green); border-color: var(--dark-olive-green);
+
+    .tool-btn.active,
+    .category-btn.active {
+      background-color: var(--olive-green);
+      border-color: var(--dark-olive-green);
     }
-    .tool-btn:disabled {
-      background-color: #555; color: #999; cursor: not-allowed;
+
+    .tool-btn:disabled,
+    #graphicsToggleBtn:disabled {
+      background-color: #555;
+      color: #999;
+      cursor: not-allowed;
     }
-    .tool-btn:disabled i.material-icons {
+
+    .tool-btn:disabled i.material-icons,
+    #graphicsToggleBtn:disabled i.material-icons {
       color: #999;
     }
+
     .text-controls {
-      display: flex; flex-direction: column; gap: 8px; padding-left: 10px;
-      border-left: 2px solid var(--olive-green); margin-top: 5px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-left: 10px;
+      border-left: 2px solid var(--olive-green);
+      margin-top: 5px;
     }
-    .text-controls input[type="text"], .text-controls input[type="number"],
-    .text-controls select, .adjustment-item select {
-      background-color: var(--input-bg); color: var(--white-text);
-      border: 1px solid var(--border-color); padding: 6px; border-radius: 3px; width: 100%;
+
+    .text-controls input[type="text"],
+    .text-controls input[type="number"],
+    .text-controls select,
+    .adjustment-item select {
+      background-color: var(--input-bg);
+      color: var(--white-text);
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 3px;
+      width: 100%;
     }
+
     .text-controls input[type="color"] {
-      padding: 0; height: 30px; border-radius: 3px;
-      border: 1px solid var(--border-color); cursor: pointer; width: 100%;
+      padding: 0;
+      height: 30px;
+      border-radius: 3px;
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      width: 100%;
     }
+
     .text-style-buttons {
-      display: flex; gap: 5px;
+      display: flex;
+      gap: 5px;
     }
+
     .style-btn {
-      padding: 6px; width: auto; flex-grow: 1; text-align: center;
+      padding: 6px;
+      width: auto;
+      flex-grow: 1;
+      text-align: center;
     }
+
     .style-btn.active {
       background-color: var(--dark-olive-green);
     }
+
     .canvas-area {
-      flex-grow: 1; display: flex; justify-content: center; align-items: center;
-      background-color: var(--lead-gray); padding: 20px; overflow: auto; min-height: 200px;
+      flex-grow: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background-color: var(--lead-gray);
+      padding: 20px;
+      overflow: auto;
+      min-height: 200px;
     }
+
     #canvas {
-      border: 1px dashed var(--border-color); background-color: #fff;
+      border: 1px dashed var(--border-color);
+      background-color: #fff;
       box-shadow: 0 0 10px rgba(0,0,0,0.2);
     }
+
     .adjustments-panel {
-      background-color: var(--dark-lead-gray); padding: 15px;
-      border-top: 2px solid var(--olive-green); display: flex;
-      gap: 20px; align-items: flex-start; overflow-x: auto; flex-shrink: 0;
+      background-color: var(--dark-lead-gray);
+      padding: 15px;
+      border-top: 2px solid var(--olive-green);
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      overflow-x: auto;
+      flex-shrink: 0;
     }
+
     .adjustments-panel.disabled {
-      opacity: 0.6; pointer-events: none;
+      opacity: 0.6;
+      pointer-events: none;
     }
+
     .adjustment-section {
-      display: flex; flex-direction: column; gap: 8px; min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 180px;
     }
+
+    .adjustment-section h4 {
+      margin-bottom: 5px;
+      font-size: 0.85em;
+    }
+
     .adjustment-item {
-      display: flex; align-items: center; gap: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
     .adjustment-item label {
-      font-size: 0.8em; min-width: 60px;
+      font-size: 0.8em;
+      min-width: 60px;
     }
+
     .adjustment-item input[type="range"] {
-      flex-grow: 1; -webkit-appearance: none; appearance: none;
-      height: 8px; background: var(--input-bg); border-radius: 4px;
-      outline: none; border: 1px solid var(--border-color);
+      flex-grow: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      background: var(--input-bg);
+      border-radius: 4px;
+      outline: none;
+      border: 1px solid var(--border-color);
     }
+
     .adjustment-item input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none;
-      width: 16px; height: 16px; background: var(--olive-green);
-      border-radius: 50%; cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: var(--olive-green);
+      border-radius: 50%;
+      cursor: pointer;
       border: 2px solid var(--dark-olive-green);
     }
+
     .adjustment-item input[type="range"]::-moz-range-thumb {
-      width: 16px; height: 16px; background: var(--olive-green);
-      border-radius: 50%; cursor: pointer;
+      width: 16px;
+      height: 16px;
+      background: var(--olive-green);
+      border-radius: 50%;
+      cursor: pointer;
       border: 2px solid var(--dark-olive-green);
     }
+
     .adjustment-item output {
-      font-size: 0.8em; min-width: 30px; text-align: right;
+      font-size: 0.8em;
+      min-width: 30px;
+      text-align: right;
     }
+
     #graphicsToggleBtn {
       margin-bottom: 10px;
     }
+
     .submenu-panel {
-      display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px;
-      padding-left: 10px; border-left: 2px solid var(--olive-green);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 10px;
+      padding-left: 10px;
+      border-left: 2px solid var(--olive-green);
     }
+
+    .category-btn {
+      margin-bottom: 0;
+      padding: 6px 10px;
+      font-size: 0.85em;
+    }
+
     .catalog-panel {
-      background-color: var(--panel-bg); border: 1px solid var(--border-color);
-      border-radius: 3px; padding: 10px; min-height: 150px; max-height: 300px;
-      overflow-y: auto; display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 10px;
+      background-color: var(--panel-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 3px;
+      padding: 10px;
+      min-height: 150px;
+      max-height: 300px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 10px;
       align-content: flex-start;
     }
-    .gallery-item {
-      background-color: var(--light-lead-gray); border: 1px solid var(--border-color);
-      padding: 5px; cursor: pointer; border-radius: 4px;
-      display: flex; justify-content: center; align-items: center;
-      transition: background-color 0.2s ease; aspect-ratio: 1 / 1; overflow: hidden;
+
+    .catalog-panel::-webkit-scrollbar {
+      width: 6px;
     }
+
+    .catalog-panel::-webkit-scrollbar-track {
+      background: var(--light-lead-gray);
+    }
+
+    .catalog-panel::-webkit-scrollbar-thumb {
+      background-color: var(--olive-green);
+      border-radius: 3px;
+    }
+
+    .gallery-item {
+      background-color: var(--light-lead-gray);
+      border: 1px solid var(--border-color);
+      padding: 5px;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: background-color 0.2s ease;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+    }
+
     .gallery-item:hover {
       background-color: var(--olive-green);
     }
+
     .gallery-item img {
-      max-width: 100%; max-height: 100%; object-fit: contain;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
+
     .layers-list-container {
-      background-color: var(--light-lead-gray); border: 1px solid var(--border-color);
-      padding: 10px; min-height: 100px; max-height: 200px;
-      overflow-y: auto; border-radius: 3px;
+      background-color: var(--light-lead-gray);
+      border: 1px solid var(--border-color);
+      padding: 10px;
+      min-height: 100px;
+      max-height: 200px;
+      overflow-y: auto;
+      border-radius: 3px;
     }
+
     .layer-item {
-      padding: 5px; margin-bottom: 5px; background-color: var(--dark-lead-gray);
-      border-radius: 3px; font-size: 0.85em; cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px;
+      margin-bottom: 5px;
+      background-color: var(--dark-lead-gray);
+      border-radius: 3px;
+      font-size: 0.85em;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
+
     .layer-item:hover {
       background-color: var(--olive-green);
     }
+
     .layer-item.active {
-      background-color: var(--dark-olive-green); font-weight: bold;
+      background-color: var(--dark-olive-green);
+      font-weight: bold;
     }
+
     .context-menu {
-      position: absolute; z-index: 1000; background-color: var(--dark-lead-gray);
-      border: 1px solid var(--border-color); border-radius: 4px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2); padding: 5px 0; min-width: 180px;
+      position: absolute;
+      z-index: 1000;
+      background-color: var(--dark-lead-gray);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      padding: 5px 0;
+      min-width: 180px;
     }
+
     .context-menu ul {
-      list-style: none; padding: 0; margin: 0;
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
+
     .context-menu ul li {
-      padding: 8px 15px; cursor: pointer; font-size: 0.9em; color: var(--white-text);
-      display: flex; align-items: center; gap: 8px;
+      padding: 8px 15px;
+      cursor: pointer;
+      font-size: 0.9em;
+      color: var(--white-text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
+
     .context-menu ul li:hover {
       background-color: var(--olive-green);
     }
+
     .context-menu ul hr {
-      border: none; border-top: 1px solid var(--border-color); margin: 4px 0;
+      border: none;
+      border-top: 1px solid var(--border-color);
+      margin: 4px 0;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
@@ -237,25 +499,22 @@
       </svg>
       <span>WinnerPhoto</span>
     </div>
+
     <div class="header-actions">
       <!-- Botón Importar -->
       <div class="header-button-group">
         <button id="headerUploadBtnToggle">
-          <i class="material-icons">file_upload</i>
-          Importar
+          <i class="material-icons">file_upload</i>Importar
         </button>
         <div id="uploadDropdownMenu" class="dropdown-menu">
-          <button id="uploadDeviceBtn">
-            <i class="material-icons">phone_android</i>
-            Desde Dispositivo
+          <button id="uploadDeviceBtn" disabled>
+            <i class="material-icons">phone_android</i>Desde Dispositivo
           </button>
           <button id="uploadDriveBtn" disabled>
-            <i class="material-icons">cloud_upload</i>
-            Google Drive
+            <i class="material-icons">cloud_upload</i>Google Drive
           </button>
           <button id="uploadPhotosBtn" disabled>
-            <i class="material-icons">photo_library</i>
-            Google Fotos
+            <i class="material-icons">photo_library</i>Google Photos
           </button>
         </div>
       </div>
@@ -263,30 +522,24 @@
       <!-- Botón Guardar -->
       <div class="header-button-group">
         <button id="headerShareBtnToggle">
-          <i class="material-icons">save_alt</i>
-          Guardar
+          <i class="material-icons">save_alt</i>Guardar
         </button>
         <div id="shareDropdownMenu" class="dropdown-menu">
           <button id="shareDriveBtn" disabled>
-            <i class="material-icons">drive_folder_upload</i>
-            Guardar en Google Drive
+            <i class="material-icons">drive_folder_upload</i>Guardar en Google Drive
           </button>
           <button id="sharePhotosBtn" disabled>
-            <i class="material-icons">add_photo_alternate</i>
-            Guardar en Google Fotos
+            <i class="material-icons">add_photo_alternate</i>Guardar en Google Photos
           </button>
           <button id="shareEmailBtn">
-            <i class="material-icons">email</i>
-            Gmail
+            <i class="material-icons">email</i>Gmail
           </button>
           <hr>
           <button id="sharePngBtn">
-            <i class="material-icons">image</i>
-            Descargar PNG
+            <i class="material-icons">image</i>Descargar PNG
           </button>
           <button id="shareJpgBtn">
-            <i class="material-icons">insert_photo</i>
-            Descargar JPG
+            <i class="material-icons">insert_photo</i>Descargar JPG
           </button>
         </div>
       </div>
@@ -299,12 +552,10 @@
       <div class="tool-section">
         <h4>Google</h4>
         <button id="googleSignInBtn" class="tool-btn">
-          <i class="material-icons">account_circle</i>
-          Iniciar sesión
+          <i class="material-icons">account_circle</i>Iniciar sesión
         </button>
         <button id="googleSignOutBtn" class="tool-btn" style="display:none;">
-          <i class="material-icons">logout</i>
-          Cerrar sesión
+          <i class="material-icons">logout</i>Cerrar sesión
         </button>
         <span id="userName" style="display: block; margin-top: 5px; font-size: 0.8em;"></span>
       </div>
@@ -312,12 +563,10 @@
       <div class="tool-section">
         <h4>Herramientas</h4>
         <button id="selectTool" class="tool-btn active">
-          <i class="material-icons">mouse</i>
-          Seleccionar
+          <i class="material-icons">mouse</i>Seleccionar
         </button>
         <button id="textTool" class="tool-btn">
-          <i class="material-icons">text_fields</i>
-          Texto
+          <i class="material-icons">text_fields</i>Texto
         </button>
         <div id="textControls" class="text-controls" style="display: none;">
           <input type="text" id="textInput" placeholder="Escribe aquí...">
@@ -341,7 +590,7 @@
       </div>
 
       <div class="tool-section">
-        <h4><i class="material-icons" style="font-size: 16px;">layers</i> Capas</h4>
+        <h4><i class="material-icons">layers</i> Capas</h4>
         <div id="layersList" class="layers-list-container"></div>
       </div>
     </aside>
@@ -351,25 +600,28 @@
       <main class="canvas-area">
         <canvas id="canvas"></canvas>
       </main>
+
       <div id="adjustmentsPanel" class="adjustments-panel disabled">
         <div class="adjustment-section">
-          <h4><i class="material-icons" style="font-size: 16px;">brightness_6</i> Brillo</h4>
+          <h4><i class="material-icons">brightness_6</i> Brillo</h4>
           <div class="adjustment-item">
             <label for="brightnessRange">Valor:</label>
             <input type="range" id="brightnessRange" min="-1" max="1" step="0.05" value="0">
             <output id="brightnessValue">0</output>
           </div>
         </div>
+
         <div class="adjustment-section">
-          <h4><i class="material-icons" style="font-size: 16px;">contrast</i> Contraste</h4>
+          <h4><i class="material-icons">contrast</i> Contraste</h4>
           <div class="adjustment-item">
             <label for="contrastRange">Valor:</label>
             <input type="range" id="contrastRange" min="-1" max="1" step="0.05" value="0">
             <output id="contrastValue">0</output>
           </div>
         </div>
+
         <div class="adjustment-section">
-          <h4><i class="material-icons" style="font-size: 16px;">filter_alt</i> Filtros</h4>
+          <h4><i class="material-icons">filter_alt</i> Filtros</h4>
           <div class="adjustment-item">
             <label for="filtersSelect" style="min-width: auto;">Tipo:</label>
             <select id="filtersSelect">
@@ -381,6 +633,7 @@
             </select>
           </div>
         </div>
+
         <div class="adjustment-section">
           <button id="resetAdjustmentsBtn" class="tool-btn" style="margin-top: 20px; padding: 6px 10px; font-size: 0.85em;">
             <i class="material-icons">settings_backup_restore</i> Restablecer
@@ -391,20 +644,17 @@
 
     <!-- SIDEBAR DERECHA -->
     <aside class="sidebar right-sidebar">
-      <h4><i class="material-icons" style="font-size: 16px;">collections</i> Galería</h4>
+      <h4><i class="material-icons">collections</i> Galería</h4>
       <button id="graphicsToggleBtn" class="tool-btn" disabled>
-        <i class="material-icons">collections</i>
-        Gráficos (Drive)
+        <i class="material-icons">photo_album</i> Gráficos (Drive)
       </button>
       <div id="graphicsSubmenu" class="submenu-panel" style="display: none;"></div>
       <div id="graphicsCatalog" class="catalog-panel" style="display: none;"></div>
     </aside>
   </div>
 
-  <!-- INPUT OCULTO PARA IMÁGENES -->
-  <input type="file" id="imageInputGlobal" accept="image/png, image/jpeg, image/gif" style="display: none">
-
-  <!-- MENÚ CONTEXTUAL -->
+  <!-- ELEMENTOS OCULTOS -->
+  <input type="file" id="imageInputGlobal" accept="image/png, image/jpeg, image/gif" style="display: none;">
   <div id="contextMenu" class="context-menu" style="display: none;">
     <ul>
       <li data-action="bringToFront"><i class="material-icons">front_hand</i>Traer al frente</li>
@@ -428,10 +678,14 @@
     let gisInited = false;
     let googleUser = null;
 
+    // Canvas principal
     const canvas = new fabric.Canvas('canvas', {
-      width: 600, height: 500, backgroundColor: '#ffffff', preserveObjectStacking: true
+      width: 600, height: 500,
+      backgroundColor: '#ffffff',
+      preserveObjectStacking: true
     });
 
+    // Elementos del DOM
     const imageInputGlobal = document.getElementById('imageInputGlobal');
     const headerUploadBtnToggle = document.getElementById('headerUploadBtnToggle');
     const uploadDropdownMenu = document.getElementById('uploadDropdownMenu');
@@ -474,8 +728,6 @@
     let currentTool = 'select';
     let isTextEditing = false;
 
-    // ========== FUNCIONES ==========
-
     function toggleDropdown(menuElement, otherMenuElement) {
       if (otherMenuElement && otherMenuElement.style.display === 'block') {
         otherMenuElement.style.display = 'none';
@@ -494,9 +746,15 @@
     });
 
     document.addEventListener('click', (e) => {
-      if (!uploadDropdownMenu.contains(e.target) && e.target !== headerUploadBtnToggle) uploadDropdownMenu.style.display = 'none';
-      if (!shareDropdownMenu.contains(e.target) && e.target !== headerShareBtnToggle) shareDropdownMenu.style.display = 'none';
-      if (contextMenuEl.style.display === 'block' && !contextMenuEl.contains(e.target)) contextMenuEl.style.display = 'none';
+      if (!uploadDropdownMenu.contains(e.target) && e.target !== headerUploadBtnToggle) {
+        uploadDropdownMenu.style.display = 'none';
+      }
+      if (!shareDropdownMenu.contains(e.target) && e.target !== headerShareBtnToggle) {
+        shareDropdownMenu.style.display = 'none';
+      }
+      if (contextMenuEl.style.display === 'block' && !contextMenuEl.contains(e.target)) {
+        contextMenuEl.style.display = 'none';
+      }
     });
 
     uploadDeviceBtn.addEventListener('click', () => {
@@ -510,7 +768,7 @@
     });
 
     uploadPhotosBtn.addEventListener('click', () => {
-      alert("Importar desde Google Fotos no está disponible aún.");
+      alert("Funcionalidad no disponible aún.");
       uploadDropdownMenu.style.display = 'none';
     });
 
@@ -518,7 +776,7 @@
     shareJpgBtn.addEventListener('click', () => exportImage('jpeg'));
     shareDriveBtn.addEventListener('click', () => uploadToDrive());
     sharePhotosBtn.addEventListener('click', () => {
-      alert("Guardar en Google Fotos no está disponible aún.");
+      alert("Funcionalidad no disponible aún.");
     });
     shareEmailBtn.addEventListener('click', () => {
       const subject = "Diseño desde WinnerPhoto";
@@ -546,13 +804,16 @@
 
     function setActiveTool(toolName) {
       currentTool = toolName;
-      document.querySelectorAll('.tool-btn:not(.header-actions button):not(#graphicsToggleBtn), .category-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
       const currentToolButton = document.getElementById(`${toolName}Tool`);
       if (currentToolButton) currentToolButton.classList.add('active');
       textControls.style.display = toolName === 'text' ? 'block' : 'none';
-      canvas.isDrawingMode = false; canvas.defaultCursor = 'default'; canvas.selection = true;
+      canvas.isDrawingMode = false;
+      canvas.defaultCursor = 'default';
+      canvas.selection = true;
       if (toolName === 'text') {
-        canvas.defaultCursor = 'text'; canvas.selection = false;
+        canvas.defaultCursor = 'text';
+        canvas.selection = false;
       }
     }
 
@@ -560,7 +821,7 @@
       if (canvas.getObjects().length === 0) return alert("No hay nada para exportar.");
       const dataURL = canvas.toDataURL({ format });
       const link = document.createElement('a');
-      link.download = `diseño.${format}`;
+      link.download = `mi_diseno.${format}`;
       link.href = dataURL;
       document.body.appendChild(link);
       link.click();
@@ -571,10 +832,13 @@
     textToolBtn.addEventListener('click', () => setActiveTool('text'));
 
     canvas.on('mouse:down', (options) => {
-      if (options.button !== 3 && contextMenuEl.style.display === 'block') contextMenuEl.style.display = 'none';
+      if (options.button !== 3 && contextMenuEl.style.display === 'block') {
+        contextMenuEl.style.display = 'none';
+      }
       if (currentTool === 'text' && !options.target && !isTextEditing && options.button !== 3) {
         const text = new fabric.IText('Texto', {
-          left: 100, top: 100,
+          left: 100,
+          top: 100,
           fontFamily: textFontSelect.value,
           fontSize: parseInt(fontSizeInput.value),
           fill: textColorInput.value,
@@ -607,18 +871,17 @@
 
     function applyTextChanges() {
       const activeObject = canvas.getActiveObject();
-      if (activeObject && activeObject.type === 'i-text') {
-        activeObject.set({
-          text: textInputEl.value,
-          fill: textColorInput.value,
-          fontFamily: textFontSelect.value,
-          fontSize: parseInt(fontSizeInput.value),
-          fontWeight: boldTextBtn.classList.contains('active') ? 'bold' : '',
-          fontStyle: italicTextBtn.classList.contains('active') ? 'italic' : '',
-          underline: underlineTextBtn.classList.contains('active')
-        });
-        canvas.renderAll();
-      }
+      if (!activeObject || activeObject.type !== 'i-text') return;
+      activeObject.set({
+        text: textInputEl.value,
+        fill: textColorInput.value,
+        fontFamily: textFontSelect.value,
+        fontSize: parseInt(fontSizeInput.value),
+        fontWeight: boldTextBtn.classList.contains('active') ? 'bold' : '',
+        fontStyle: italicTextBtn.classList.contains('active') ? 'italic' : '',
+        underline: underlineTextBtn.classList.contains('active')
+      });
+      canvas.renderAll();
     }
 
     textInputEl.addEventListener('input', applyTextChanges);
@@ -626,120 +889,20 @@
     textFontSelect.addEventListener('change', applyTextChanges);
     fontSizeInput.addEventListener('input', applyTextChanges);
     boldTextBtn.addEventListener('click', () => {
-      boldTextBtn.classList.toggle('active'); applyTextChanges();
+      boldTextBtn.classList.toggle('active');
+      applyTextChanges();
     });
     italicTextBtn.addEventListener('click', () => {
-      italicTextBtn.classList.toggle('active'); applyTextChanges();
+      italicTextBtn.classList.toggle('active');
+      applyTextChanges();
     });
     underlineTextBtn.addEventListener('click', () => {
-      underlineTextBtn.classList.toggle('active'); applyTextChanges();
+      underlineTextBtn.classList.toggle('active');
+      applyTextChanges();
     });
 
-    window.addEventListener('keydown', (e) => {
-      const activeObject = canvas.getActiveObject();
-      if (!activeObject || document.activeElement === textInputEl ||
-          ['INPUT', 'SELECT'].includes(document.activeElement.tagName)) return;
-      const step = e.shiftKey ? 10 : 1; let actionPerformed = false;
-      switch (e.key) {
-        case 'Delete': case 'Backspace': deleteSelectedObjects(); actionPerformed = true; break;
-        case 'ArrowUp': activeObject.set('top', activeObject.top - step); actionPerformed = true; break;
-        case 'ArrowDown': activeObject.set('top', activeObject.top + step); actionPerformed = true; break;
-        case 'ArrowLeft': activeObject.set('left', activeObject.left - step); actionPerformed = true; break;
-        case 'ArrowRight': activeObject.set('left', activeObject.left + step); actionPerformed = true; break;
-      }
-      if (actionPerformed) {
-        e.preventDefault(); activeObject.setCoords(); canvas.renderAll();
-      }
-    });
-
-    function deleteSelectedObjects() {
-      const activeObjects = canvas.getActiveObjects();
-      if (activeObjects.length) {
-        activeObjects.forEach(obj => canvas.remove(obj));
-        canvas.discardActiveObject();
-      } else if (canvas.getActiveObject()) {
-        canvas.remove(canvas.getActiveObject());
-      }
-      canvas.renderAll();
-      updateLayersList();
-    }
-
-    function updateLayersList(options = {}) {
-      layersListDiv.innerHTML = '';
-      const objects = canvas.getObjects().reverse();
-      objects.forEach((obj, index) => {
-        const layerItem = document.createElement('div');
-        layerItem.className = 'layer-item';
-        if (options.target === obj) layerItem.classList.add('active');
-        layerItem.textContent = `Capa ${index + 1}`;
-        layerItem.addEventListener('click', () => {
-          canvas.setActiveObject(obj);
-          updateLayersList({ target: obj });
-        });
-        layersListDiv.appendChild(layerItem);
-      });
-    }
-
-    function updateAdjustmentsPanelState(options) {
-      const activeObject = options?.target || canvas.getActiveObject();
-      adjustmentsPanel.classList.toggle('disabled', !(activeObject && activeObject.filters));
-    }
-
-    canvas.on({
-      'object:added': updateLayersList,
-      'object:removed': updateLayersList,
-      'selection:created': (e) => {
-        updateLayersList({ target: e.target });
-        updateAdjustmentsPanelState({ target: e.target });
-      },
-      'selection:updated': (e) => {
-        updateLayersList({ target: e.target });
-        updateAdjustmentsPanelState({ target: e.target });
-      },
-      'selection:cleared': () => {
-        updateLayersList(); adjustmentsPanel.classList.add('disabled');
-        brightnessRange.value = 0; brightnessValue.textContent = '0';
-        contrastRange.value = 0; contrastValue.textContent = '0';
-        filtersSelectEl.value = 'none';
-      },
-      'object:modified': updateLayersList
-    });
-
-    canvas.on('mouse:up', function (options) {
-      if (options.button === 3) {
-        const target = options.target;
-        const activeObject = canvas.getActiveObject();
-        if (activeObject && target === activeObject) {
-          contextMenuEl.style.left = `${options.e.clientX}px`;
-          contextMenuEl.style.top = `${options.e.clientY}px`;
-          contextMenuEl.style.display = 'block';
-        } else {
-          contextMenuEl.style.display = 'none';
-        }
-      }
-    });
-
-    canvas.wrapperEl.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-
-    contextMenuEl.addEventListener('click', function (e) {
-      const action = e.target.getAttribute('data-action') || e.target.closest('[data-action]').getAttribute('data-action');
-      const activeObject = canvas.getActiveObject();
-      if (!activeObject) return;
-      switch (action) {
-        case 'bringToFront': activeObject.bringToFront(); break;
-        case 'sendToBack': activeObject.sendToBack(); break;
-        case 'bringForward': activeObject.bringForward(); break;
-        case 'sendBackwards': activeObject.sendBackwards(); break;
-        case 'duplicate':
-          activeObject.clone(function(cloned) {
-            cloned.set({ left: cloned.left + 10, top: cloned.top + 10 });
-            canvas.add(cloned).setActiveObject(cloned);
-          }); break;
-        case 'delete': deleteSelectedObjects(); break;
-      }
-      contextMenuEl.style.display = 'none';
-      canvas.renderAll();
-    });
+    window.addEventListener('resize', resizeCanvas);
+    document.addEventListener("DOMContentLoaded", resizeCanvas);
 
     function resizeCanvas() {
       const container = document.querySelector('.canvas-area');
@@ -750,15 +913,11 @@
       canvas.renderAll();
     }
 
-    window.addEventListener('resize', resizeCanvas);
-    document.addEventListener("DOMContentLoaded", resizeCanvas);
-
-    // Google Auth
     function initClient() {
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: GOOGLE_SCOPES,
-        callback: handleTokenResponse
+        callback: handleTokenResponse,
       });
       gisInited = true;
       updateUiWithAuth();
@@ -776,8 +935,10 @@
 
     function fetchUserProfile() {
       fetch('https://www.googleapis.com/oauth2/v3/userinfo ', {
-        headers: { Authorization: `Bearer ${googleUser.access_token}` }
-      }).then(res => res.json()).then(data => {
+        headers: { Authorization: `Bearer ${googleUser?.access_token}` },
+      })
+      .then(res => res.json())
+      .then(data => {
         userNameSpan.textContent = data.name;
       });
     }
@@ -788,14 +949,16 @@
 
     function googleSignOut() {
       if (google.accounts) {
-        google.accounts.oauth2.revoke(googleUser.access_token, () => {
-          googleUser = null; updateUiWithAuth(); userNameSpan.textContent = '';
+        google.accounts.oauth2.revoke(googleUser?.access_token, () => {
+          googleUser = null;
+          updateUiWithAuth();
+          userNameSpan.textContent = '';
         });
       }
     }
 
     function updateUiWithAuth() {
-      const isSignedIn = googleUser && googleUser.access_token && gapiInited;
+      const isSignedIn = googleUser?.access_token && gapiInited;
       googleSignInBtn.style.display = isSignedIn ? 'none' : 'flex';
       googleSignOutBtn.style.display = isSignedIn ? 'flex' : 'none';
       uploadDriveBtn.disabled = !isSignedIn;
@@ -803,23 +966,44 @@
       shareDriveBtn.disabled = !isSignedIn;
       sharePhotosBtn.disabled = !isSignedIn;
       graphicsToggleBtn.disabled = !isSignedIn;
+      if (!isSignedIn) adjustmentsPanel.classList.add('disabled');
     }
 
-    // Google Drive Picker
+    function gapiLoaded() {
+      return new Promise(resolve => {
+        gapi.load('client', async () => {
+          await gapi.client.init({
+            apiKey: USER_PROVIDED_API_KEY,
+            discoveryDocs: [
+              "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest ",
+              "https://photoslibrary.googleapis.com/ $discovery/rest"
+            ],
+          });
+          gapiInited = true;
+          resolve();
+        });
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      await gapiLoaded();
+      initClient();
+    });
+
     function showDrivePickerGUI() {
       const pickerApiLoaded = document.createElement('script');
       pickerApiLoaded.src = 'https://apis.google.com/js/api.js ';
       pickerApiLoaded.onload = () => {
         gapi.load('picker', () => {
-          const token = googleUser.access_token;
-          const view = new gapi.picker.View(gapi.picker.ViewId.IMAGES);
-          const picker = new gapi.picker.PickerBuilder()
-            .enableFeature(gapi.picker.Feature.NAV_HIDDEN)
-            .setOAuthToken(token)
+          const token = googleUser?.access_token;
+          const view = new google.picker.View(google.picker.ViewId.IMAGES);
+          const picker = new google.picker.PickerBuilder()
+            .enableFeature(google.picker.Feature.NAV_HIDDEN)
             .addView(view)
+            .setOAuthToken(token)
             .setDeveloperKey(USER_PROVIDED_API_KEY)
             .setCallback((data) => {
-              if (data.action === gapi.picker.Action.PICKED) {
+              if (data.action === google.picker.Action.PICKED) {
                 const fileId = data.docs[0].id;
                 addImageFromDriveToCanvas(fileId);
               }
@@ -834,7 +1018,7 @@
     async function addImageFromDriveToCanvas(fileId) {
       try {
         const response = await fetch(`https://www.googleapis.com/drive/v3/files/ ${fileId}?alt=media`, {
-          headers: { Authorization: `Bearer ${googleUser.access_token}` }
+          headers: { Authorization: `Bearer ${googleUser?.access_token}` },
         });
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -850,8 +1034,166 @@
       }
     }
 
+    function deleteSelectedObjects() {
+      const activeObjects = canvas.getActiveObjects();
+      if (activeObjects.length) {
+        activeObjects.forEach(obj => canvas.remove(obj));
+        canvas.discardActiveObject();
+      } else if (canvas.getActiveObject()) {
+        canvas.remove(canvas.getActiveObject());
+      }
+      canvas.renderAll();
+      updateLayersList();
+    }
+
+    function updateLayersList(options = {}) {
+      layersListDiv.innerHTML = '';
+      const objects = canvas.getObjects().reverse();
+
+      objects.forEach((obj, index) => {
+        const layerItem = document.createElement('div');
+        layerItem.className = 'layer-item';
+        if (options.target === obj) layerItem.classList.add('active');
+        layerItem.textContent = `Capa ${index + 1}`;
+        layerItem.addEventListener('click', () => {
+          canvas.setActiveObject(obj);
+          updateLayersList({ target: obj });
+        });
+        layersListDiv.appendChild(layerItem);
+      });
+    }
+
+    function applyFilter(filterType) {
+      const activeObj = canvas.getActiveObject();
+      if (!activeObj) return;
+      let filter;
+      switch (filterType) {
+        case 'grayscale': filter = new fabric.Image.filters.Grayscale(); break;
+        case 'sepia': filter = new fabric.Image.filters.Sepia(); break;
+        case 'invert': filter = new fabric.Image.filters.Invert(); break;
+        case 'blur': filter = new fabric.Image.filters.Blur({ blur: 0.5 }); break;
+        default: filter = null;
+      }
+      if (activeObj.filters) {
+        if (filterType === 'none') {
+          activeObj.filters = [];
+        } else {
+          activeObj.filters[0] = filter;
+        }
+        activeObj.applyFilters();
+        canvas.renderAll();
+      }
+    }
+
+    brightnessRange.addEventListener('input', (e) => {
+      brightnessValue.textContent = e.target.value;
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && activeObj.filters) {
+        const filter = new fabric.Image.filters.Brightness({ brightness: parseFloat(e.target.value) });
+        activeObj.filters[0] = filter;
+        activeObj.applyFilters();
+        canvas.renderAll();
+      }
+    });
+
+    contrastRange.addEventListener('input', (e) => {
+      contrastValue.textContent = e.target.value;
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && activeObj.filters) {
+        const filter = new fabric.Image.filters.Contrast({ contrast: parseFloat(e.target.value) });
+        activeObj.filters[1] = filter;
+        activeObj.applyFilters();
+        canvas.renderAll();
+      }
+    });
+
+    filtersSelectEl.addEventListener('change', (e) => applyFilter(e.target.value));
+
+    resetAdjustmentsBtn.addEventListener('click', () => {
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && activeObj.filters) {
+        activeObj.filters = [];
+        activeObj.applyFilters();
+        canvas.renderAll();
+        brightnessRange.value = 0;
+        brightnessValue.textContent = '0';
+        contrastRange.value = 0;
+        contrastValue.textContent = '0';
+        filtersSelectEl.value = 'none';
+      }
+    });
+
+    function updateAdjustmentsPanelState(options) {
+      const activeObj = options?.target || canvas.getActiveObject();
+      if (activeObj && activeObj.type === 'image') {
+        adjustmentsPanel.classList.remove('disabled');
+      } else {
+        adjustmentsPanel.classList.add('disabled');
+      }
+    }
+
+    canvas.on('selection:created', updateLayersList);
+    canvas.on('selection:updated', updateLayersList);
+    canvas.on('selection:cleared', (e) => {
+      updateLayersList(e);
+      adjustmentsPanel.classList.add('disabled');
+    });
+    canvas.on('object:modified', updateLayersList);
+
+    canvas.on('mouse:up', function (e) {
+      if (e.button === 3) {
+        const target = e.target;
+        const activeObject = canvas.getActiveObject();
+        if (activeObject && target === activeObject) {
+          contextMenuEl.style.left = `${e.e.clientX}px`;
+          contextMenuEl.style.top = `${e.e.clientY}px`;
+          contextMenuEl.style.display = 'block';
+        } else {
+          contextMenuEl.style.display = 'none';
+        }
+      }
+    });
+
+    canvas.wrapperEl.addEventListener('contextmenu', function (e) {
+      e.preventDefault();
+    });
+
+    contextMenuEl.addEventListener('click', function (e) {
+      const action = e.target.getAttribute('data-action') || e.target.closest('[data-action]').getAttribute('data-action');
+      const activeObject = canvas.getActiveObject();
+      if (!activeObject) return;
+      switch (action) {
+        case 'bringToFront':
+          activeObject.bringToFront();
+          break;
+        case 'sendToBack':
+          activeObject.sendToBack();
+          break;
+        case 'bringForward':
+          activeObject.bringForward();
+          break;
+        case 'sendBackwards':
+          activeObject.sendBackwards();
+          break;
+        case 'duplicate':
+          activeObject.clone(function (cloned) {
+            cloned.set({ left: cloned.left + 10, top: cloned.top + 10 });
+            canvas.add(cloned).setActiveObject(cloned);
+          });
+          break;
+        case 'delete':
+          deleteSelectedObjects();
+          break;
+      }
+      contextMenuEl.style.display = 'none';
+      canvas.renderAll();
+    });
+
     async function uploadToDrive() {
-      if (!googleUser || !googleUser.access_token) return alert("Debes iniciar sesión con Google.");
+      if (!googleUser || !googleUser.access_token) {
+        alert("Debes iniciar sesión con Google.");
+        return;
+      }
       const dataURL = canvas.toDataURL({ format: 'png' });
       const blob = await fetch(dataURL).then(r => r.blob());
 
@@ -879,29 +1221,17 @@
       }
     }
 
-    // Inicializar API
-    async function gapiLoaded() {
-      return new Promise(resolve => {
-        gapi.load('client', async () => {
-          await gapi.client.init({
-            apiKey: USER_PROVIDED_API_KEY,
-            discoveryDocs: [
-              "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest ",
-              "https://photoslibrary.googleapis.com/ $discovery/rest"
-            ],
-          });
-          gapiInited = true;
-          resolve();
-        });
-      });
-    }
+    document.getElementById("googleSignInBtn").addEventListener("click", googleSignIn);
+    document.getElementById("googleSignOutBtn").addEventListener("click", googleSignOut);
 
-    document.addEventListener("DOMContentLoaded", async () => {
-      await gapiLoaded();
-      initClient();
+    // Menú contextual
+    canvas.on('object:selected', (e) => {
+      updateLayersList({ target: e.target });
+      updateAdjustmentsPanelState({ target: e.target });
     });
 
-    // Funciones restantes (aplicar filtros, etc.) ya están definidas en tu app
+    canvas.on('object:added', updateLayersList);
+    canvas.on('object:removed', updateLayersList);
   </script>
 </body>
 </html>
