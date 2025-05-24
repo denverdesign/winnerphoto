@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WinnerPhoto – Editor de Fotos Pro</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <script src="https://apis.google.com/js/api.js?onload=gapiLoaded" async defer></script>
+  <script src="https://accounts.google.com/gsi/client?onload=gisLoaded" async defer></script>
+  <style>
+    /* === Modal de Autenticación === */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999; /* Aumentado para estar sobre otros modales si los hubiera */
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+    .modal-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background-color: var(--bg-dark-medium, #1e1e1e);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      max-width: 450px;
+      width: 90%;
+      text-align: center;
+      color: var(--text-primary, #fff);
+      transform: scale(0.9);
+      transition: transform 0.3s ease;
+      position: relative; /* Para el botón de cierre absoluto */
+    }
+    .modal-overlay.visible .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-close-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 1.8em;
+      background: none;
+      border: none;
+      color: var(--text-secondary, #ccc);
+      cursor: pointer;
+      line-height: 1; /* Añadido para mejor alineación vertical */
+      padding: 0; /* Añadido para quitar padding extra */
+    }
+    .modal-close-btn:hover {
+      color: var(--text-primary, #fff);
+    }
+    /* Estilos del modal de autenticación (continuación, algunos pueden estar duplicados de arriba, mantener los más completos) */
+    .modal-content h2 { font-size: 1.8em; color: var(--text-primary); margin-bottom: 15px; font-weight: 600; }
+    .modal-content p { font-size: 0.95em; color: var(--text-secondary); margin-bottom: 25px; line-height: 1.6; }
+
+    .auth-btn {
+      width: 100%;
+      padding: 12px 20px;
+      margin-bottom: 15px;
+      border-radius: var(--control-border-radius, 8px); /* Usando variable CSS */
+      border: none;
+      font-size: 1em;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background-color 0.2s ease, opacity 0.2s ease;
+    }
+    .auth-btn .icon-placeholder {
+      font-size: 1.2em;
+      display: flex;
+      align-items: center;
+    }
+    .auth-btn.social-auth-btn,
+    #continueWithGoogleBtnModal { /* Aplicando a ambos selectores si comparten estilo */
+      background-color: var(--bg-dark-light, #2d2d2d);
+      color: var(--text-primary, #fff);
+      border: 1px solid var(--border-color, #444);
+    }
+    #continueWithGoogleBtnModal:hover { /* Específico para el botón de Google en el modal */
+      background-color: var(--input-bg, #3d3d3d);
+    }
+    .auth-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .auth-btn:disabled:hover {
+      background-color: var(--bg-dark-light, #2d2d2d); /* Evitar cambio de color en hover cuando está desactivado */
+    }
+
+    .auth-legal {
+      font-size: 0.75em;
+      color: var(--text-secondary, #aaa);
+      margin-top: 20px;
+      line-height: 1.5;
+    }
+    .auth-legal a {
+      color: var(--accent-primary, #4285F4);
+      text-decoration: none;
+    }
+    .auth-legal a:hover {
+      text-decoration: underline;
+    }
+    :root {
+      --bg-dark-deep: #1a1d24; --bg-dark-medium: #242830; --bg-dark-light: #333942;
+      --accent-primary: #00c6ab; --accent-primary-darker: #00a38d;
+      --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --text-on-accent: var(--bg-dark-deep);
+      --border-color: #404550; --input-bg: #2c313a;
+      --header-height: 60px; --sidebar-left-width: 91px;
+      --tool-settings-panel-width: 271px;
+      --tool-settings-panel-padding-left: 24px; --tool-settings-panel-padding-right: 23px;
+      --tool-settings-panel-text-color: rgb(173, 177, 204);
+      --panel-border-radius: 8px; --control-border-radius: 6px;
+      --mobile-toolbar-height: 65px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: 'Picsart-Fonts', 'system-ui', sans-serif;
+        background-color: var(--bg-dark-deep);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        font-weight: 400;
+        font-size: 16px;
+    }
+    .app-header {
+        height: var(--header-height);
+        background-color: var(--bg-dark-medium);
+        display: flex;
+        align-items: center;
+        padding: 0 20px;
+        border-bottom: 1px solid var(--border-color);
+        z-index: 100;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; color: var(--accent-primary); font-size: 1.6em; font-weight: bold; letter-spacing: -0.5px; }
+    .logo svg { width: 32px; height: 32px; fill: currentColor; }
+    .header-actions { display: flex; gap: 10px; margin-left: auto; align-items: center; }
+    .header-button-group { position: relative; }
+    .header-actions button, .dropdown-menu button, .header-icon-btn { background-color: var(--accent-primary); color: var(--text-on-accent); font-weight: 500; border: none; padding: 10px 18px; border-radius: var(--control-border-radius); cursor: pointer; font-size: 0.9em; display: flex; align-items: center; gap: 8px; transition: background-color 0.2s ease, transform 0.1s ease; }
+    .header-actions button:hover, .header-icon-btn:hover { background-color: var(--accent-primary-darker); transform: translateY(-1px); }
+    .header-icon-btn { padding: 8px; width: 38px; height: 38px; justify-content: center; font-size: 1.2em; background-color: var(--bg-dark-light); color: var(--text-primary); }
+    .header-icon-btn:hover { background-color: var(--accent-primary); color: var(--text-on-accent); }
+    .header-icon-btn .icon-placeholder { font-size: inherit; margin: 0; }
+    .dropdown-menu { display: none; position: absolute; top: calc(100% + 8px); right: 0; background-color: var(--bg-dark-light); border: 1px solid var(--border-color); border-radius: var(--panel-border-radius); box-shadow: 0 8px 20px rgba(0,0,0,0.3); min-width: 240px; z-index: 1001; padding: 8px; overflow: hidden; }
+    .dropdown-menu button { width: 100%; justify-content: flex-start; margin-bottom: 4px; background-color: transparent; color: var(--text-primary); padding: 10px 12px; font-weight: normal; }
+    .dropdown-menu button:last-child { margin-bottom: 0; }
+    .dropdown-menu button:hover { background-color: var(--accent-primary); color: var(--text-on-accent); }
+    .dropdown-menu hr { border-color: var(--border-color); margin: 6px 0; }
+    .dropdown-menu .google-login-prompt { font-size: 0.8em; color: var(--text-secondary); padding: 8px 12px 4px 12px; margin: 4px 0 0 0; border-top: 1px solid var(--border-color); cursor: pointer; text-align: center; }
+    .dropdown-menu .google-login-prompt:hover { color: var(--accent-primary); }
+    .app-container {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+        padding-top: var(--header-height);
+    }
+    .left-sidebar {
+        width: var(--sidebar-left-width);
+        min-width: var(--sidebar-left-width);
+        height: 100%;
+        padding: 15px 0;
+        display: flex;
+        flex-direction: column;
+        color: var(--text-secondary);
+        background-color: var(--bg-dark-medium);
+        overflow-y: auto;
+        border-right: 1px solid var(--border-color);
+        z-index: 5;
+    }
+    .tool-section { width: 100%; padding: 0 10px; margin-bottom: 20px; }
+    .tool-section:last-child { margin-bottom: 0; }
+    .tool-section h4 { color: var(--text-secondary); font-size: 0.7em; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; text-align: left; }
+    .tool-btn {
+        background-color: transparent;
+        color: var(--text-secondary);
+        border: none;
+        padding: 10px; margin-bottom: 8px;
+        cursor: pointer;
+        border-radius: var(--control-border-radius);
+        width: 100%;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 10px;
+        position: relative;
+        font-size: 0.95em;
+    }
+    .tool-btn .icon-placeholder {
+        font-size: 1.3em;
+        width: 24px;
+        text-align: center;
+    }
+    .tool-btn span { font-size: 0.85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tool-btn:hover { background-color: var(--bg-dark-light); color: var(--text-primary); }
+    .tool-btn.active { background-color: var(--accent-primary); color: var(--text-on-accent); box-shadow: 0 0 10px var(--accent-primary-darker); }
+    .main-content-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--bg-dark-deep);
+        padding: 20px;
+        position: relative;
+        overflow: auto;
+    }
+    .canvas-area {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    #canvas {
+        border: 1px dashed var(--border-color);
+        background-color: #fff;
+        box-shadow: 0 0 20px rgba(0,0,0,0.25);
+        border-radius: var(--panel-border-radius);
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    #zoom_menu { width: 100%; max-width: 350px; height: 40px; display: flex; align-items: center; justify-content: space-between; font-size: 0.9em; color: var(--text-secondary); margin-top: 20px; background-color: var(--bg-dark-medium); padding: 0 15px; border-radius: var(--control-border-radius); }
+    #zoom_menu span { min-width: 60px; }
+    #zoom_menu input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 8px; background-color: var(--input-bg); border-radius: 4px; outline: none; margin: 0 10px; }
+    #zoom_menu input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; background-color: var(--accent-primary); border-radius: 50%; cursor: pointer; border: 3px solid var(--bg-dark-medium); }
+    #zoom_menu input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; background-color: var(--accent-primary); border-radius: 50%; cursor: pointer; border: 3px solid var(--bg-dark-medium); }
+    .right-sidebar {
+        width: 250px;
+        min-width: 250px;
+        background-color: var(--bg-dark-medium);
+        padding: 20px;
+        border-left: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow-y: auto;
+    }
+    .right-sidebar h4 { color: var(--text-secondary); font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .right-sidebar .tool-section { padding: 0; margin-bottom:15px; }
+    .right-sidebar .tool-section#layers-section { margin-top: auto; margin-bottom: 0;}
+    .catalog-container { width: 100%; flex-grow: 1; overflow-y: auto; padding: 5px 0; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; min-height: 100px; }
+    .catalog-placeholder { width: 100%; text-align: center; color: var(--text-secondary); font-style: italic; padding: 20px; }
+    .thumbnail-item { width: calc(50% - 5px); aspect-ratio: 1 / 1; background-color: transparent; border: 1px solid var(--border-color); border-radius: var(--control-border-radius); cursor: pointer; overflow: hidden; display: flex; align-items: center; justify-content: center; transition: transform 0.1s ease, box-shadow 0.2s ease; }
+    .thumbnail-item.graphic-thumbnail { background-color: var(--bg-dark-light);  }
+    .thumbnail-item:hover { transform: scale(1.05); box-shadow: 0 0 10px var(--accent-primary-darker); }
+    .thumbnail-item img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    .layers-list-container { background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: var(--control-border-radius); padding: 8px; min-height: 150px; max-height: 300px; overflow-y: auto; width: 100%; margin-top: 10px; }
+    .layer-item { padding: 6px 8px; margin-bottom: 5px; background-color: var(--bg-dark-light); border-radius: var(--control-border-radius); font-size: 0.85em; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-primary); transition: background-color 0.2s ease; }
+    .layer-item:last-child { margin-bottom: 0; }
+    .layer-item:hover, .layer-item.active-layer { background-color: var(--accent-primary); color: var(--text-on-accent); }
+    .layer-item-name { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 5px;}
+    .layer-actions button { background: transparent; border: none; color: inherit; cursor: pointer; padding: 3px 5px; font-size: 0.9em; line-height: 1; border-radius: 3px;}
+    .layer-actions button:hover { background-color: rgba(255,255,255,0.2); }
+    .layer-actions button.delete-layer-btn:hover { background-color: #c0392b; color: white; }
+    .context-menu { position: absolute; z-index: 1000; background-color: var(--bg-dark-light); border: 1px solid var(--border-color); border-radius: var(--panel-border-radius); box-shadow: 0 5px 15px rgba(0,0,0,0.25); padding: 6px 0; min-width: 200px; display: none; }
+    .context-menu ul { list-style: none; }
+    .context-menu ul li { padding: 10px 18px; font-size: 0.9em; color: var(--text-primary); display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease; }
+    .context-menu ul li .icon-placeholder { display: inline-block; width: 20px; text-align: center;}
+    .context-menu ul li:hover { background-color: var(--accent-primary); color: var(--text-on-accent); }
+    .context-menu ul hr { margin: 6px 0; border: none; border-top: 1px solid var(--border-color); }
+    #toolSettingsPanel {
+        position: fixed;
+        top: var(--header-height);
+        left: var(--sidebar-left-width);
+        width: var(--tool-settings-panel-width);
+        height: calc(100vh - var(--header-height));
+        padding: 0;
+        display: none;
+        flex-direction: column;
+        font-family: 'Mulish', "Avenir Next", "Trebuchet MS", sans-serif;
+        font-size: 16px; font-weight: 400; line-height: 24px;
+        color: var(--tool-settings-panel-text-color);
+        background-color: var(--bg-dark-medium);
+        border-right: 1px solid var(--border-color);
+        z-index: 90;
+        overflow: hidden;
+        box-shadow: 3px 0 10px rgba(0,0,0,0.15);
+        transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    #toolSettingsPanel.visible {
+        display: flex;
+        transform: translateX(0%);
+        opacity: 1;
+    }
+    #toolSettingsPanel .panel-header { padding: 20px var(--tool-settings-panel-padding-right) 0 var(--tool-settings-panel-padding-left); flex-shrink: 0; }
+    #toolSettingsPanel .panel-scroll-content { padding: 15px var(--tool-settings-panel-padding-right) 20px var(--tool-settings-panel-padding-left); flex-grow: 1; overflow-y: auto; }
+    #toolSettingsPanel h4 { color: var(--accent-primary); margin-bottom: 15px; font-size: 1.1em; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); font-family: inherit; line-height: inherit; }
+    #toolSettingsPanel label { display: flex; align-items: center; gap: 8px; font-size: 0.9em; margin-top: 12px; margin-bottom: 8px; color: inherit; font-family: inherit; }
+    #toolSettingsPanel input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 18px; height: 18px; border: 2px solid var(--border-color); border-radius: 4px; cursor: pointer; position: relative; outline: none; flex-shrink: 0; }
+    #toolSettingsPanel input[type="checkbox"]:checked { background-color: var(--accent-primary); border-color: var(--accent-primary-darker); }
+    #toolSettingsPanel input[type="checkbox"]:checked::before { content: '✔'; font-size: 12px; color: var(--text-on-accent); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+    #toolSettingsPanel input[type="range"] { width: 100%; padding: 0; margin-bottom: 15px; border-radius: var(--control-border-radius); border: none; background-color: transparent; font-size: 0.9em; height: 20px; }
+    #toolSettingsPanel input[type="range"]::-webkit-slider-runnable-track { width: 100%; height: 6px; cursor: pointer; background: var(--input-bg); border-radius: 3px; border: 1px solid var(--border-color); }
+    #toolSettingsPanel input[type="range"]::-moz-range-track { width: 100%; height: 6px; cursor: pointer; background: var(--input-bg); border-radius: 3px; border: 1px solid var(--border-color); }
+    #toolSettingsPanel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; margin-top: -6px; background-color: var(--accent-primary); border-radius: 50%; cursor: pointer; border: 2px solid var(--bg-dark-medium); }
+    #toolSettingsPanel input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; background-color: var(--accent-primary); border-radius: 50%; cursor: pointer; border: 2px solid var(--bg-dark-medium); }
+    #toolSettingsPanel select, #toolSettingsPanel input[type="text"], #toolSettingsPanel input[type="number"], #toolSettingsPanel input[type="color"] { width: 100%; padding: 10px; margin-bottom: 15px; border-radius: var(--control-border-radius); border: 1px solid var(--border-color); background-color: var(--input-bg); color: var(--text-primary); font-size: 0.9em; font-family: inherit; }
+    #toolSettingsPanel input[type="color"] { padding: 5px; height: 40px; }
+    #toolSettingsPanel .text-style-buttons { display: flex; gap: 8px; margin-top: 5px; margin-bottom: 10px; }
+    #toolSettingsPanel .style-btn { padding: 8px; background-color: var(--bg-dark-light); color: var(--tool-settings-panel-text-color); border: 1px solid var(--border-color); width: auto; flex-grow: 1; text-align: center; font-weight: bold; font-size: 0.9em; border-radius:var(--control-border-radius); }
+    #toolSettingsPanel .style-btn.active { background-color: var(--accent-primary); color: var(--text-on-accent); border-color: var(--accent-primary-darker); }
+    #toolSettingsPanel button { width: 100%; padding: 10px 5px; margin-top: 10px; margin-bottom: 5px; background-color: var(--bg-dark-light); border: 1px solid var(--border-color); color: var(--tool-settings-panel-text-color); font-weight: normal; font-family: inherit; font-size: 0.85em; line-height: 1.2; border-radius: var(--control-border-radius); cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+    #toolSettingsPanel button .icon-placeholder { font-size: 1.5em; margin-bottom: 4px; line-height: 1; }
+    #toolSettingsPanel button .button-text { display: block; }
+    #toolSettingsPanel button:hover { background-color: var(--accent-primary); color: var(--text-on-accent); border-color: var(--accent-primary-darker); }
+    #toolSettingsPanel button.danger { background-color: #723232; border-color: #502323; color: var(--text-primary);}
+    #toolSettingsPanel button.danger:hover { background-color: #8c3e3e; border-color: #6a2d2d; }
+    .range-value { font-weight: bold; color: var(--text-primary); margin-left: 5px;}
+    .stealth-upload-button { position: fixed; bottom: 15px; right: 15px; width: 40px; height: 40px; background-color: var(--bg-dark-light); border: 1px solid var(--border-color); border-radius: 50%; padding: 0; cursor: pointer; outline: none; z-index: 1000; box-shadow: 0 0 8px rgba(200, 200, 200, 0.3); transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out; display: flex; align-items: center; justify-content: center;}
+    .stealth-upload-button:hover { box-shadow: 0 0 12px rgba(224, 224, 224, 0.6); transform: scale(1.1); background-color: var(--accent-primary); }
+    .stealth-upload-button:active { transform: scale(1.05); box-shadow: 0 0 6px rgba(224, 224, 224, 0.5); }
+    .stealth-upload-button .icon-placeholder { font-size: 20px; color: var(--accent-primary); transition: color 0.2s ease;}
+
+    /* .modal-overlay and .modal-content styles are defined above, merged for auth modal */
+
+    .mobile-toolbar { display: none; position: fixed; bottom: 0; left: 0; width: 100%; height: var(--mobile-toolbar-height); background-color: var(--bg-dark-medium); border-top: 1px solid var(--border-color); box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 100; overflow-x: auto; overflow-y: hidden; white-space: nowrap; padding: 0 5px; }
+    .mobile-toolbar .tool-btn { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: auto; min-width: 60px; height: 100%; padding: 5px; margin: 0 2px; font-size: 0.75em; color: var(--text-secondary); }
+    .mobile-toolbar .tool-btn .icon-placeholder { font-size: 1.6em; margin-bottom: 3px; }
+    .mobile-toolbar .tool-btn span { font-size: 0.8em; white-space: normal; text-align: center; line-height: 1.1; max-width: 55px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .mobile-toolbar .tool-btn.active { color: var(--accent-primary); background-color: var(--bg-dark-light); }
+    .mobile-toolbar .tool-btn.active .icon-placeholder { color: var(--accent-primary); }
+    .mobile-toolbar .panels-toggle-btn { border-left: 1px solid var(--border-color); margin-left: auto; }
+    .mobile-side-panel { display: none; position: fixed; top: var(--header-height); right: -300px; width: 280px; max-width: 85%; height: calc(100vh - var(--header-height) - var(--mobile-toolbar-height)); background-color: var(--bg-dark-medium); border-left: 1px solid var(--border-color); box-shadow: -3px 0 15px rgba(0,0,0,0.25); z-index: 95; transition: right 0.3s ease-in-out; padding: 15px; overflow-y: auto; flex-direction: column; }
+    .mobile-side-panel.visible { right: 0; display: flex; }
+    .mobile-side-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+    .mobile-side-panel-header h4 { color: var(--accent-primary); font-size: 1.1em; margin: 0; }
+    .mobile-side-panel-close-btn { background: none; border: none; color: var(--text-secondary); font-size: 1.5em; cursor: pointer; padding: 5px; line-height: 1; }
+    .mobile-side-panel .tab-buttons { display: flex; margin-bottom: 15px; }
+    .mobile-side-panel .tab-button { flex-grow: 1; padding: 10px; background-color: var(--bg-dark-light); border: 1px solid var(--border-color); color: var(--text-secondary); cursor: pointer; text-align: center; font-size: 0.9em; }
+    .mobile-side-panel .tab-button:first-child { border-top-left-radius: var(--control-border-radius); border-bottom-left-radius: var(--control-border-radius); border-right: none; }
+    .mobile-side-panel .tab-button:last-child { border-top-right-radius: var(--control-border-radius); border-bottom-right-radius: var(--control-border-radius); }
+    .mobile-side-panel .tab-button.active { background-color: var(--accent-primary); color: var(--text-on-accent); border-color: var(--accent-primary-darker); }
+    .mobile-side-panel .tab-content { display: none; flex-grow: 1; overflow-y: auto; }
+    .mobile-side-panel .tab-content.active { display: flex; flex-direction:column; /* Asegurar que el contenido interno se comporte como se espera */ }
+    .mobile-side-panel .tab-content .catalog-container, .mobile-side-panel .tab-content .layers-list-container {
+      width: 100% !important; /* Sobrescribir si es necesario */
+      height: auto !important; /* Permitir que crezca */
+      flex-grow: 1; /* Ocupar espacio */
+    }
+    @media (max-width: 768px) {
+      body { font-size: 14px; overflow: hidden; }
+      .app-container { padding-top: var(--header-height); height: 100vh; overflow: hidden; }
+      .left-sidebar { display: none !important; }
+      .right-sidebar { display: none !important; }
+      .mobile-toolbar { display: flex; }
+      .main-content-area { padding: 10px; height: calc(100% - var(--mobile-toolbar-height)); overflow: auto; }
+      .main-content-area.panel-open { margin-left: 0; }
+      #canvas { min-width: 280px; min-height: 200px; }
+      #toolSettingsPanel { left: 0; top: auto; bottom: var(--mobile-toolbar-height); width: 100%; height: auto; max-height: 45%; border-right: none; border-top: 1px solid var(--border-color); border-radius: var(--panel-border-radius) var(--panel-border-radius) 0 0; z-index: 98; transform: translateY(100%); opacity: 1; box-shadow: 0 -3px 15px rgba(0,0,0,0.2); }
+      #toolSettingsPanel.visible { transform: translateY(0%); }
+      #toolSettingsPanel .panel-header { padding: 15px; }
+      #toolSettingsPanel .panel-scroll-content { padding: 0 15px 15px 15px; }
+      #toolSettingsPanel h4 { font-size: 1em; margin-bottom: 10px; padding-bottom: 8px; }
+      #toolSettingsPanel button { font-size: 0.9em; padding: 10px 8px; gap: 6px;}
+      #toolSettingsPanel button .icon-placeholder { font-size: 1.4em; }
+      #zoom_menu { max-width: 90%; font-size: 0.8em; margin-bottom: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm3.5 13.79c-.32.32-.76.49-1.21.49s-.89-.17-1.21-.49l-4.08-4.08c-.32-.32-.49-.76-.49-1.21s.17-.89.49-1.21l1.02-1.02c.63-.63 1.79-.63 2.42 0l1.88 1.88L16.71 8.5c.63-.63 1.79-.63 2.42 0l1.02 1.02c.32.32.49.76.49 1.21s-.17-.89-.49 1.21l-4.07 4.06z"/></svg>WinnerPhoto</div>
+    <div class="header-actions">
+      <div class="header-button-group"><button id="headerUploadBtnToggle" title="Importar Imagen">Importar</button><div id="uploadDropdownMenu" class="dropdown-menu">
+        <button id="uploadDriveBtn" disabled>Google Drive</button>
+        <button id="uploadPhotosBtn" disabled>Google Photos</button>
+      </div></div>
+      <div class="header-button-group"><button id="headerShareBtnToggle" title="Guardar y Compartir">Guardar</button><div id="shareDropdownMenu" class="dropdown-menu">
+        <button id="shareDriveBtn" disabled>Guardar en Google Drive</button>
+        <button id="sharePhotosBtn" disabled>Guardar en Google Photos</button>
+        <button id="shareEmailBtn">Compartir por Gmail</button>
+        <hr>
+      </div></div>
+      <button id="googleSignInBtn">Iniciar con Google</button>
+      <button id="googleSignOutBtn" style="display: none;">Cerrar Sesión</button>
+      <span id="userName"></span>
+    </div>
+  </header>
+  <div class="app-container">
+    <aside class="left-sidebar sidebar">
+      <div class="tool-section"><h4>Herramientas</h4>
+        <button id="selectTool" class="tool-btn active" title="Seleccionar"><span class="icon-placeholder">🖐️</span><span>Seleccionar</span></button>
+        <button id="textTool" class="tool-btn" title="Añadir Texto"><span class="icon-placeholder">Aa</span><span>Texto</span></button>
+        <button id="filtersTool" class="tool-btn" title="Filtros"><span class="icon-placeholder">🎨</span><span>Filtros</span></button>
+        <button id="drawTool" class="tool-btn" title="Dibujar"><span class="icon-placeholder">✏️</span><span>Dibujo</span></button>
+        <button id="effectsTool" class="tool-btn" title="Efectos"><span class="icon-placeholder">✨</span><span>Efectos</span></button>
+        <button id="eraserTool" class="tool-btn" title="Borrador"><span class="icon-placeholder">🧼</span><span>Borrador</span></button>
+      </div>
+      <div class="tool-section"><h4>Elementos</h4>
+        <button id="graphicsTool" class="tool-btn" title="Gráficos y Marcos"><span class="icon-placeholder">🖼️</span><span>Gráficos</span></button>
+      </div>
+    </aside>
+    <div class="main-content-area">
+      <main class="canvas-area">
+        <canvas id="canvas"></canvas>
+        <div id="zoom_menu"><span>Zoom:</span><input type="range" id="zoomSlider" min="0.1" max="3" step="0.01" value="1" title="Nivel de Zoom"><span id="zoomValue">100%</span></div>
+      </main>
+    </div>
+    <aside class="sidebar right-sidebar">
+      <div class="tool-section"><h4>Catálogo</h4><div id="catalogContainer" class="catalog-container"><p class="catalog-placeholder">Selecciona una categoría para ver los elementos.</p></div></div>
+      <div class="tool-section" id="layers-section"><h4>Capas</h4><div id="layersList" class="layers-list-container"></div></div>
+    </aside>
+  </div>
+  <nav class="mobile-toolbar" id="mobileToolbar"></nav>
+  <aside class="mobile-side-panel" id="mobileSidePanel">
+    <div class="mobile-side-panel-header">
+        <h4 id="mobileSidePanelTitle">Paneles</h4>
+        <button id="mobileSidePanelCloseBtn" class="mobile-side-panel-close-btn" title="Cerrar paneles">×</button>
+    </div>
+    <div class="tab-buttons">
+        <button class="tab-button active" data-tab="catalog">Catálogo</button>
+        <button class="tab-button" data-tab="layers">Capas</button>
+    </div>
+    <div id="mobileCatalogContent" class="tab-content active">
+    </div>
+    <div id="mobileLayersContent" class="tab-content">
+    </div>
+  </aside>
+  <input type="file" id="imageInputGlobal" accept="image/*" style="display: none;" />
+  <div id="contextMenu" class="context-menu" style="display: none;">
+    <ul>
+      <li data-action="bringForward"><span class="icon-placeholder">🔼</span> Traer Adelante</li>
+      <li data-action="sendBackwards"><span class="icon-placeholder">🔽</span> Enviar Atrás</li>
+      <li data-action="bringToFront"><span class="icon-placeholder">⏫</span> Traer al Frente</li>
+      <li data-action="sendToBack"><span class="icon-placeholder">⏬</span> Enviar al Fondo</li><hr>
+      <li data-action="duplicate"><span class="icon-placeholder">📋</span> Duplicar</li><hr>
+      <li data-action="delete" style="color: #e74c3c;"><span class="icon-placeholder">🗑️</span> Eliminar</li>
+    </ul>
+  </div>
+  <div id="toolSettingsPanel"></div>
+  <button id="stealthUploadBtn" class="stealth-upload-button" title="Subir imagen desde dispositivo"><span class="icon-placeholder">+</span></button>
+  <input type="file" id="stealthImageInput" accept="image/*" style="display: none;" />
+
+  <!-- Modal de Autenticación (versión corregida y consolidada) -->
+  <div id="authModalOverlay" class="modal-overlay">
+    <div id="authModal" class="modal-content">
+      <button id="closeAuthModalBtn" class="modal-close-btn">×</button>
+      <h2>Antes de Empezar...</h2>
+      <p>Inicia sesión con Google para guardar tu trabajo y usar todas las funciones en la nube.</p>
+      <button class="auth-btn social-auth-btn google-btn" id="continueWithGoogleBtnModal">
+        <span class="icon-placeholder">
+            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg"><path fill="#4285F4" d="M17.64 9.20455c0-.63864-.05727-1.25455-.1625-1.84091H9.09091v3.48182h4.79091c-.20455 1.125-.86364 2.08636-1.7625 2.72159v2.25886h2.90909c1.70455-1.56818 2.68636-3.87273 2.68636-6.62136z"/><path fill="#34A853" d="M9.09091 18c2.44659 0 4.49545-.80682 5.99432-2.18182l-2.90909-2.25886c-.80682.54545-1.84091.86364-3.08523.86364-2.3375 0-4.32727-1.57955-5.0375-3.70455H1.04318v2.33182C2.54205 16.10227 5.58068 18 9.09091 18z"/><path fill="#FBBC05" d="M4.05341 10.8977c-.14205-.42045-.22273-.87045-.22273-1.34091s.08068-.92045.22273-1.34091V5.88409H1.04318C.375 7.10227 0 8.44886 0 9.55682s.375 2.45455 1.04318 3.67273l3.01023-2.33182z"/><path fill="#EA4335" d="M9.09091 3.55682c1.32386 0 2.51136.45455 3.44886 1.35841l2.58523-2.58523C13.5864.954545 11.5375 0 9.09091 0 5.58068 0 2.54205 1.89773 1.04318 4.55682l3.01023 2.33182c.70909-2.125 2.69886-3.70455 5.0375-3.70455z"/></svg>
+        </span> Iniciar con Google</button>
+      <button class="auth-btn social-auth-btn facebook-btn" disabled><span class="icon-placeholder">f</span> Continuar con Facebook</button>
+      <button class="auth-btn social-auth-btn apple-btn" disabled><span class="icon-placeholder"></span> Continuar con Apple</button>
+      <p class="auth-legal">
+        Al continuar, aceptas nuestros
+        <a href="#terminos" target="_blank">Términos de Uso</a> y la
+        <a href="#privacidad" target="_blank">Política de Privacidad</a>.
+      </p>
+    </div>
+  </div>
+<script>
+  // --- Variables Globales ---
+  let currentTool = 'select';
+  const GOOGLE_CLIENT_ID = 'TU_CLIENT_ID.apps.googleusercont154978319000-v83riina3t9ofqqs0kuv4mlm5kn1a6fv.apps.googleusercontent.coment.com'; // ¡¡¡REEMPLAZA ESTO!!!
+  const GOOGLE_SCOPES = 'email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/photoslibrary.readonly';
+  // Las siguientes se inicializarán por las funciones de Google
+  let googleUser = null;
+  let gapiAccessToken = null;
+  let gisInited = false; // Para GSI (Google Sign-In)
+  let gapiInited = false; // Para GAPI (Google API Client Library, ej: Picker)
+  let codeClient = null;
+  // ========================================
+
+  const canvas = new fabric.Canvas('canvas', { backgroundColor: '#ffffff', preserveObjectStacking: true });
+  const toolSettingsPanel = document.getElementById('toolSettingsPanel');
+  const mainContentArea = document.querySelector('.main-content-area');
+  const mobileToolbar = document.getElementById('mobileToolbar');
+  const mobileSidePanel = document.getElementById('mobileSidePanel');
+  const mobileCatalogContent = document.getElementById('mobileCatalogContent');
+  const mobileLayersContent = document.getElementById('mobileLayersContent');
+  const mobileSidePanelCloseBtn = document.getElementById('mobileSidePanelCloseBtn');
+
+  const assetPaths = {
+      graphics: {
+          "Corazon":  { path: "assets/graphics/Corazon/", files: ["corazon1.png", "corazon2.png", "corazon3.png", "corazon4.png", "corazon5.png", "corazon6.png", "corazon7.png", "corazon8.png", "corazon9.png"]},
+          "Estrella": { path: "assets/graphics/Estrella/", files: ["estrella1.png", "estrella2.png", "estrella3.png", "estrella4.png", "estrella5.png", "estrella6.png", "estrella7.png", "estrella8.png", "estrella9.png", "estrella10.png", "estrella11.png", "estrella12.png"]},
+          "Flores":   { path: "assets/graphics/Flores/", files: [] },
+          "Gemas":    { path: "assets/graphics/Gemas/", files: ["gema1.png", "gema2.png", "gema3.png", "gema4.png", "gema5.png", "gema6.png", "gema7.png", "gema8.png", "gema9.png", "gema10.png", "gema11.png", "gema12.png", "gema13.png", "gema14.png"]},
+          "Plantas":  { path: "assets/graphics/Plantas/", files: ["planta17.png", "planta18.png", "planta19.png", "planta20.png", "planta21.png", "planta22.png", "planta23.png", "planta24.png", "planta25.png", "planta26.png", "planta27.png", "planta28.png", "planta29.png", "planta30.png", "planta31.png", "planta32.png", "planta33.png", "planta34.png", "planta35.png"]},
+          "Texturas": { path: "assets/graphics/Texturas/", files: [] },
+          "Marcos":   { path: "assets/graphics/Marcos/", files: [] }
+      }
+  };
+
+  // ========== INICIALIZACIÓN Y MANEJO DE AUTENTICACIÓN DE GOOGLE (NUEVAS FUNCIONES INTEGRADAS) ==========
+
+  // Llamada cuando la librería GSI (Google Sign-In) está cargada
+  // Renombrada de tu 'initGsi' para coincidir con el callback 'onload'
+  window.gisLoaded = () => {
+    console.log("GSI client library loaded.");
+    codeClient = google.accounts.oauth2.initCodeClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_SCOPES, // Usando la constante global
+      redirect_uri: window.location.origin + window.location.pathname, // Dinámico
+      // response_type: 'code', // No es necesario aquí, se infiere por initCodeClient
+      callback: handleAuthCodeResponse // Tu función para manejar la respuesta con el código
+    });
+    gisInited = true;
+    checkEnableGoogleButtons(); // Habilitar botones si ya hay sesión o por si se recarga la página con código
+    handleRedirectWithCode(); // Manejar si la página se cargó con un código en la URL
+  };
+
+  // Llamada cuando la librería GAPI (Google API Client) está cargada
+  window.gapiLoaded = () => {
+    console.log("GAPI library loaded.");
+    gapi.load('client:picker', () => { // Cargar el Picker y otras APIs cliente que necesites
+        console.log("GAPI Picker loaded.");
+        gapiInited = true;
+        if (gapiAccessToken) { // Si ya obtuvimos un access token (del backend)
+            try {
+              gapi.client.setToken({ access_token: gapiAccessToken });
+            } catch(e) {
+              console.error("Error estableciendo token GAPI inicial:", e);
+            }
+        }
+        checkEnableGoogleButtons();
+    });
+  };
+
+  // Maneja la respuesta de Google que contiene el código de autorización
+  async function handleAuthCodeResponse(response) {
+    console.log("Respuesta de autorización de Google recibida:", response);
+    if (response.error) {
+      console.error("Error al obtener código de autorización de Google:", response.error, response);
+      alert("No se pudo iniciar sesión con Google: " + (response.error_description || response.error));
+      // Limpiar cualquier estado de usuario pendiente
+      googleUser = null;
+      gapiAccessToken = null;
+      updateUiWithAuth();
+      return;
+    }
+
+    const authCode = response.code;
+    console.log("Código de autorización obtenido:", authCode);
+    await processAuthCode(authCode); // Envía el código al backend
+  }
+
+  // Envía el código de autorización al backend y procesa la respuesta
+  async function processAuthCode(code) {
+    console.log("Enviando código de autorización al backend:", code);
+    try {
+      const res = await fetch('http://localhost:8000/auth/google', { // Asegúrate que esta URL es correcta
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }) // El backend espera un objeto { code: "..." }
+      });
+
+      const data = await res.json(); // El backend debería devolver JSON
+
+      if (!res.ok) {
+        console.error("Error del backend:", res.status, data);
+        throw new Error(data.message || `Error del servidor: ${res.status}`);
+      }
+
+      console.log("Respuesta exitosa del backend:", data);
+
+      // Asumimos que el backend devuelve 'id_token' y 'access_token'
+      if (data.id_token && data.access_token) {
+        const payload = parseJwt(data.id_token); // Decodifica el id_token para obtener datos del perfil
+        console.log("Payload del ID Token decodificado:", payload);
+
+        googleUser = {
+          loggedIn: true,
+          profileData: { // Mapea los campos que esperas de JWT a tu objeto profileData
+            given_name: payload.given_name || payload.name, // O usa payload.name como fallback
+            name: payload.name,
+            email: payload.email,
+            picture: payload.picture
+            // Agrega otros campos que necesites y que estén en el payload
+          }
+        };
+        gapiAccessToken = data.access_token; // Token para usar con GAPI
+
+        if (gapiInited && gapiAccessToken) { // Si GAPI ya cargó, configura el token
+             try {
+                gapi.client.setToken({ access_token: gapiAccessToken });
+                console.log("Token de GAPI establecido después de la respuesta del backend.");
+             } catch(e) {
+                console.error("Error estableciendo token GAPI tras respuesta backend:", e);
+             }
+        }
+
+        updateUiWithAuth(); // Actualiza la UI para reflejar el estado de login
+        closeAuthModal(); // Cierra el modal de autenticación si estaba abierto
+      } else {
+        console.error("Respuesta del backend incompleta. Faltan id_token o access_token.", data);
+        throw new Error("Respuesta del servidor incompleta después del inicio de sesión.");
+      }
+
+    } catch (err) {
+      console.error("Error al procesar código con el backend:", err);
+      alert("Hubo un problema al iniciar sesión con Google: " + err.message);
+      googleUser = null;
+      gapiAccessToken = null;
+      updateUiWithAuth();
+    }
+  }
+
+  // Función para decodificar un JWT (ID Token)
+  function parseJwt(token) {
+    try {
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      return JSON.parse(jsonPayload);
+    } catch (e) {
+      console.error("Error decodificando JWT:", e);
+      return {}; // Devuelve objeto vacío en caso de error
+    }
+  }
+
+  // Actualiza la interfaz de usuario basada en el estado de autenticación
+  function updateUiWithAuth() {
+    const isSignedIn = isUserSignedInWithGoogle();
+    const signInBtn = document.getElementById('googleSignInBtn');
+    const signOutBtn = document.getElementById('googleSignOutBtn');
+    const userNameEl = document.getElementById('userName');
+
+    if(signInBtn) signInBtn.style.display = isSignedIn ? 'none' : 'flex';
+    if(signOutBtn) signOutBtn.style.display = isSignedIn ? 'flex' : 'none';
+
+    if(userNameEl) {
+        if(isSignedIn && googleUser.profileData) {
+            userNameEl.textContent = `Hola, ${googleUser.profileData.given_name || (googleUser.profileData.name ? googleUser.profileData.name.split(' ')[0] : 'Usuario')}`;
+            userNameEl.style.display = 'inline';
+        } else {
+            userNameEl.textContent = '';
+            userNameEl.style.display = 'none';
+        }
+    }
+
+    checkEnableGoogleButtons(); // Tu función existente para habilitar/deshabilitar botones de Drive/Photos
+    
+    const authModal = document.getElementById('authModalOverlay');
+    if(isSignedIn && authModal && authModal.classList.contains('visible')) {
+        closeAuthModal();
+    }
+  }
+
+  // Verifica si el usuario está logueado
+  function isUserSignedInWithGoogle() {
+    return !!(googleUser && googleUser.loggedIn);
+  }
+
+  // Inicia el flujo de login con Google
+  function googleSignIn() {
+    if (!gisInited || !codeClient) {
+        console.error("GSI/CodeClient no está listo.");
+        alert("El servicio de inicio de sesión de Google aún se está cargando. Por favor, inténtalo de nuevo en unos momentos.");
+        return;
+    }
+    console.log("Solicitando código de autorización a Google...");
+    try {
+        codeClient.requestCode(); // Esto abrirá el pop-up de Google
+    } catch (error) {
+        console.error("Error al llamar a codeClient.requestCode():", error);
+        alert("Hubo un problema al intentar iniciar sesión con Google.");
+    }
+  }
+
+  // Cierra la sesión del usuario
+  function googleSignOut() {
+    console.log("Cerrando sesión...");
+    // Aquí podrías llamar a un endpoint de tu backend para invalidar la sesión del lado del servidor si la tienes.
+    // Por ahora, solo limpiaremos el estado del frontend.
+
+    if (window.google && google.accounts && google.accounts.oauth2 && gapiAccessToken) {
+        try {
+            // Esto es opcional, pero bueno para revocar el token del lado de Google si ya no se usará
+            // google.accounts.oauth2.revoke(gapiAccessToken, () => {
+            //     console.log("Token de acceso de Google revocado (si era válido).");
+            // });
+        } catch (e) {
+            console.warn("No se pudo revocar el token de acceso de Google:", e);
+        }
+    }
+
+    googleUser = null;
+    gapiAccessToken = null;
+
+    if (gapiInited && gapi.client) {
+        try {
+            gapi.client.setToken(null); // Limpiar token en la librería GAPI
+        } catch (e) {
+            console.error("Error al limpiar token en GAPI client:", e);
+        }
+    }
+    updateUiWithAuth();
+    console.log("Sesión cerrada en el frontend.");
+  }
+
+  // Verifica si la URL actual contiene un código de autorización (por redirección)
+  function handleRedirectWithCode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const scope = urlParams.get('scope'); // Google también devuelve el scope
+
+    if (code) {
+        console.log("Código de autorización encontrado en la URL (redirección):", code);
+        // Limpiar los parámetros de la URL para que no se procesen de nuevo si se recarga
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        // Simular la estructura de respuesta que espera handleAuthCodeResponse
+        const simulatedResponse = {
+            code: code,
+            scope: scope, // Puedes usarlo si lo necesitas
+            // Puedes añadir otros campos si la librería los espera o tu lógica los usa
+        };
+        handleAuthCodeResponse(simulatedResponse);
+    }
+  }
+  
+  // Habilita/deshabilita botones dependientes de Google (Drive, Photos)
+  function checkEnableGoogleButtons(){
+      const isSignedIn = isUserSignedInWithGoogle();
+      // gapiReadyForPicker ahora solo depende de gapiInited y si tenemos un gapiAccessToken
+      const gapiReadyForPicker = gapiInited && !!gapiAccessToken;
+      const buttonsToManage = [
+          { id: 'uploadDriveBtn', needsGapiPicker: true, originalTitle: "Importar desde Google Drive" },
+          { id: 'uploadPhotosBtn', needsGapiPicker: true, originalTitle: "Importar desde Google Photos" },
+          { id: 'shareDriveBtn', needsGapiPicker: true, originalTitle: "Guardar en Google Drive" },
+          { id: 'sharePhotosBtn', needsGapiPicker: false, originalTitle: "Guardar en Google Photos" }
+      ];
+      buttonsToManage.forEach(config => {
+          const btn = document.getElementById(config.id);
+          if(btn) {
+              let isDisabled = !isSignedIn; // Primero, necesita estar logueado
+              if (config.needsGapiPicker) { // Si además necesita GAPI (Picker)
+                  isDisabled = isDisabled || !gapiReadyForPicker;
+              }
+              btn.disabled = isDisabled;
+              btn.title = isDisabled ? "Inicia sesión con Google para usar esta función." : config.originalTitle;
+          }
+      });
+  }
+
+  // ========== MODAL DE AUTENTICACIÓN ==========
+  const authModalOverlay = document.getElementById('authModalOverlay');
+  const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+  const continueWithGoogleBtnModal = document.getElementById('continueWithGoogleBtnModal');
+
+  function openAuthModal() { if (authModalOverlay && !isUserSignedInWithGoogle()) authModalOverlay.classList.add('visible'); }
+  function closeAuthModal() { if (authModalOverlay) authModalOverlay.classList.remove('visible'); }
+
+  window.addEventListener('load', () => {
+      if (!isUserSignedInWithGoogle()) {
+          setTimeout(() => {
+              if (!isUserSignedInWithGoogle()) { openAuthModal(); }
+          }, 1200);
+      }
+  });
+
+  closeAuthModalBtn?.addEventListener('click', closeAuthModal);
+  authModalOverlay?.addEventListener('click', (event) => {
+      if (event.target === authModalOverlay) { closeAuthModal(); }
+  });
+  continueWithGoogleBtnModal?.addEventListener('click', googleSignIn);
+
+  // ========== LÓGICA DE LA APLICACIÓN (EXISTENTE) ==========
+  // (Aquí va el resto de tus funciones: showToolSettings, setActiveTool, etc.)
+
+    // --- Lógica de UI Mejorada para Móvil y Escritorio ---
+    function showToolSettings(toolName) {
+        console.log(`Mostrando panel para: ${toolName}`);
+        toolSettingsPanel.classList.add('visible');
+        toolSettingsPanel.innerHTML = ''; toolSettingsPanel.dataset.activeTool = toolName;
+        let panelTitleText = ''; let panelControlsHTML = '';
+        const buttonTemplate = (onclickAction, icon, text) => `<button onclick="${onclickAction}"><span class="icon-placeholder">${icon}</span><span class="button-text">${text}</span></button>`;
+        const clearBtnClass = 'danger';
+        const clearButtonHTML = `<hr style="margin: 15px 0; border-color: var(--border-color);">${buttonTemplate("clearAllFiltersAndEffects()", "🗑️", "Limpiar Efectos")}`;
+        switch (toolName) {
+            case 'filters': panelTitleText = 'Filtros'; panelControlsHTML = `<label><input type="checkbox" id="blackWhiteCheck"> B&N</label><label><input type="checkbox" id="grayscaleCheck"> Grises</label><label><input type="checkbox" id="sepiaCheck"> Sepia</label><hr style="margin:15px 0;"><label for="brightnessRange">Brillo: <span class="range-value" id="brightnessValue">0.0</span></label><input type="range" id="brightnessRange" min="-1" max="1" step="0.01" value="0"><label for="contrastRange">Contraste: <span class="range-value" id="contrastValue">0.0</span></label><input type="range" id="contrastRange" min="-1" max="1" step="0.01" value="0"><label for="saturationRange">Saturación: <span class="range-value" id="saturationValue">0.0</span></label><input type="range" id="saturationRange" min="-1" max="3" step="0.01" value="0">${clearButtonHTML.replace("Limpiar Efectos", "Limpiar Filtros").replace('<button onclick', `<button class="${clearBtnClass}" onclick`)}`; break;
+            case 'effects': panelTitleText = 'Efectos'; panelControlsHTML = `${buttonTemplate("applyEffect('blur')","💧","Desenfoque")} ${buttonTemplate("applyEffect('sharpen')","✨","Enfoque")} ${buttonTemplate("applyEffect('edge')","📉","Bordes")} ${buttonTemplate("applyEffect('pixelate')","🏁","Pixelado")} ${buttonTemplate("applyEffect('noise')","▒","Ruido")} ${buttonTemplate("applyEffect('vignette')","◙","Viñeta")} ${buttonTemplate("applyEffect('invert')","🔄","Invertir")} ${buttonTemplate("applyEffect('hue')","🌈","Tono")} ${buttonTemplate("applyEffect('mosaic')","🎞️","Mosaico")} ${clearButtonHTML.replace('<button onclick',`<button class="${clearBtnClass}" onclick`)}`; break;
+            case 'draw': panelTitleText = 'Dibujo'; panelControlsHTML = `<label for="drawColor">Color:</label><input type="color" id="drawColor" value="${canvas.freeDrawingBrush?.color||'#e03131'}"><label for="drawWidth">Ancho: <span class="range-value" id="drawWidthValue">${canvas.freeDrawingBrush?.width||5}</span>px</label><input type="range" id="drawWidth" min="1" max="50" value="${canvas.freeDrawingBrush?.width||5}">`; break;
+            case 'text': panelTitleText = 'Texto'; panelControlsHTML = `<label for="textInputPanel">Texto:</label><input type="text" id="textInputPanel" placeholder="Escribe aquí..."><label for="textColorPanel">Color:</label><input type="color" id="textColorPanel" value="#333333"><label for="textFontPanel">Fuente:</label><select id="textFontPanel"><option value="Arial">Arial</option><option value="Verdana">Verdana</option><option value="Times New Roman">Times</option><option value="Courier New">Courier</option><option value="Georgia">Georgia</option><option value="Impact">Impact</option><option value="Comic Sans MS">Comic Sans</option></select><label for="fontSizePanel">Tamaño: <span class="range-value" id="fontSizeValuePanel">30</span>px</label><input type="range" id="fontSizePanel" value="30" min="8" max="200" step="1"><div class="text-style-buttons"><button id="boldTextPanel" class="style-btn">B</button><button id="italicTextPanel" class="style-btn">I</button><button id="underlineTextPanel" class="style-btn">U</button></div>`; break;
+            case 'graphics': panelTitleText = 'Gráficos'; panelControlsHTML = Object.keys(assetPaths.graphics).map(categoryName => buttonTemplate(`loadCatalog('graphics', '${categoryName}')`, '🖼️', categoryName)).join(''); break;
+            default: hideToolSettings(); return;
+        }
+        if (panelControlsHTML) toolSettingsPanel.innerHTML = `<div class="panel-header"><h4>${panelTitleText}</h4></div><div class="panel-scroll-content">${panelControlsHTML}</div>`;
+        if (toolName === 'filters') { setupFilterListeners(); updateFilterControlsFromSelection(); }
+        else if (toolName === 'draw') { setupDrawListeners(); }
+        else if (toolName === 'text') { setupTextPanelListeners(); updateTextPanelFromSelection(); }
+        toolSettingsPanel.querySelectorAll('input[type="range"]').forEach(range => { const vSId = range.id.replace('Panel','ValuePanel').replace('Range','Value'); const vS = range.previousElementSibling?.querySelector('.range-value')||document.getElementById(vSId); if(vS){vS.textContent=parseFloat(range.value).toFixed(range.step.includes('.')?2:0); range.addEventListener('input',()=>vS.textContent=parseFloat(range.value).toFixed(range.step.includes('.')?2:0));}});
+    }
+    function hideToolSettings() { toolSettingsPanel.classList.remove('visible'); toolSettingsPanel.dataset.activeTool = ''; }
+    function setActiveTool(toolName) {
+        console.log(`setActiveTool: ${toolName}`);
+        const toolsThatOpenPanel = ['filters', 'effects', 'text', 'graphics', 'draw'];
+        if (currentTool === toolName && toolsThatOpenPanel.includes(toolName) && toolSettingsPanel.classList.contains('visible')) { hideToolSettings(); return; }
+        currentTool = toolName;
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            const btnToolName = btn.id.replace('mobile-', '').replace('Tool', '');
+            btn.classList.toggle('active', btnToolName === toolName );
+        });
+        canvas.isDrawingMode = ['draw', 'eraser'].includes(toolName);
+        canvas.selection = toolName === 'select' || !canvas.isDrawingMode;
+        if (toolName === 'draw') { canvas.freeDrawingBrush = new fabric.PencilBrush(canvas); canvas.freeDrawingBrush.color = document.getElementById('drawColor')?.value || '#e03131'; canvas.freeDrawingBrush.width = parseInt(document.getElementById('drawWidth')?.value, 10) || 5; showToolSettings('draw'); }
+        else if (toolName === 'eraser') { canvas.freeDrawingBrush = new fabric.EraserBrush(canvas); canvas.freeDrawingBrush.width = 20; hideToolSettings(); }
+        else if (toolsThatOpenPanel.includes(toolName)) { showToolSettings(toolName); }
+        else { hideToolSettings(); }
+        if (toolName !== 'text' && toolSettingsPanel.dataset.activeTool === 'text') updateTextPanelFromSelection(); else if (toolName === 'text') updateTextPanelFromSelection();
+        if (toolName !== 'filters' && toolSettingsPanel.dataset.activeTool === 'filters') updateFilterControlsFromSelection(); else if (toolName === 'filters') updateFilterControlsFromSelection();
+        updateLayersList();
+    }
+    function setupToolButtons(containerSelector, isMobile) {
+        const prefix = isMobile ? "mobile-" : "";
+        const toolButtonsData = [ { id: 'selectTool', icon: '🖐️', text: 'Seleccionar', toolName: 'select' }, { id: 'textTool', icon: 'Aa', text: 'Texto', toolName: 'text' }, { id: 'filtersTool', icon: '🎨', text: 'Filtros', toolName: 'filters' }, { id: 'drawTool', icon: '✏️', text: 'Dibujo', toolName: 'draw' }, { id: 'effectsTool', icon: '✨', text: 'Efectos', toolName: 'effects' }, { id: 'eraserTool', icon: '🧼', text: 'Borrador', toolName: 'eraser' }, { id: 'graphicsTool', icon: '🖼️', text: 'Gráficos', toolName: 'graphics' }];
+        const container = isMobile ? mobileToolbar : document.querySelector(containerSelector);
+        if (!container) { console.error("Contenedor de botones no encontrado:", containerSelector); return; }
+        toolButtonsData.forEach(tool => {
+            let btn;
+            if (isMobile) {
+                btn = document.createElement('button'); btn.id = prefix + tool.id; btn.className = 'tool-btn'; btn.title = tool.text;
+                btn.innerHTML = `<span class="icon-placeholder">${tool.icon}</span><span>${tool.text}</span>`; container.appendChild(btn);
+            } else { btn = document.getElementById(tool.id); }
+            if (btn) { btn.addEventListener('click', () => setActiveTool(tool.toolName)); if (tool.toolName === 'select') btn.classList.add('active');}
+        });
+        if (isMobile) { const panelsBtn = document.createElement('button'); panelsBtn.id = 'mobilePanelsToggleBtn'; panelsBtn.className = 'tool-btn panels-toggle-btn'; panelsBtn.title = 'Paneles'; panelsBtn.innerHTML = `<span class="icon-placeholder">📊</span><span>Panels</span>`; panelsBtn.addEventListener('click', toggleMobileSidePanel); container.appendChild(panelsBtn);}
+    }
+    function toggleMobileSidePanel() { mobileSidePanel.classList.toggle('visible'); if (mobileSidePanel.classList.contains('visible') && !mobileSidePanel.dataset.initialized) { switchMobileSidePanelTab('catalog'); mobileSidePanel.dataset.initialized = true;}}
+    mobileSidePanelCloseBtn?.addEventListener('click', toggleMobileSidePanel);
+    function switchMobileSidePanelTab(tabName) { mobileSidePanel.querySelectorAll('.tab-button').forEach(btn => { btn.classList.toggle('active', btn.dataset.tab === tabName);}); mobileSidePanel.querySelectorAll('.tab-content').forEach(content => { content.classList.toggle('active', content.id === `mobile${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Content`);}); document.getElementById('mobileSidePanelTitle').textContent = tabName.charAt(0).toUpperCase() + tabName.slice(1);}
+    mobileSidePanel.querySelectorAll('.tab-button').forEach(button => { button.addEventListener('click', () => switchMobileSidePanelTab(button.dataset.tab));});
+    let catalogContainerMoved = false;
+    let layersListMoved = false;
+    function populateMobilePanels() {
+        const desktopCatalogContainer = document.getElementById('catalogContainer');
+        const desktopLayersListContainer = document.getElementById('layersList');
+
+        if (desktopCatalogContainer && !catalogContainerMoved) {
+            if (desktopCatalogContainer.parentElement !== mobileCatalogContent) { 
+                mobileCatalogContent.appendChild(desktopCatalogContainer);
+                catalogContainerMoved = true;
+            }
+        }
+        if (desktopLayersListContainer && !layersListMoved) {
+             if (desktopLayersListContainer.parentElement !== mobileLayersContent) { 
+                mobileLayersContent.appendChild(desktopLayersListContainer);
+                layersListMoved = true;
+            }
+        }
+    }
+    function checkMobileLayout() {
+        const isMobile = window.innerWidth <= 768;
+        document.body.classList.toggle('mobile-layout', isMobile);
+        if (isMobile) {
+            if (!mobileToolbar.hasChildNodes()) { setupToolButtons(null, true); }
+            populateMobilePanels();
+        }
+    }
+    function setupFilterListeners() { const cks={g:document.getElementById('grayscaleCheck'),s:document.getElementById('sepiaCheck'),b:document.getElementById('blackWhiteCheck')},rgs={br:document.getElementById('brightnessRange'),co:document.getElementById('contrastRange'),sa:document.getElementById('saturationRange')};function uF(){const o=canvas.getActiveObject();if(!o||o.type!=='image')return;o.filters=[];if(cks.g?.checked)o.filters.push(new fabric.Image.filters.Grayscale());if(cks.s?.checked)o.filters.push(new fabric.Image.filters.Sepia());if(cks.b?.checked)o.filters.push(new fabric.Image.filters.BlackWhite());const brV=rgs.br?parseFloat(rgs.br.value):0,coV=rgs.co?parseFloat(rgs.co.value):0,saV=rgs.sa?parseFloat(rgs.sa.value):0;if(brV!==0)o.filters.push(new fabric.Image.filters.Brightness({brightness:brV}));if(coV!==0)o.filters.push(new fabric.Image.filters.Contrast({contrast:coV}));if(saV!==0)o.filters.push(new fabric.Image.filters.Saturation({saturation:saV}));o.applyFilters();canvas.renderAll();}Object.values(cks).forEach(el=>el?.addEventListener('change',uF));Object.values(rgs).forEach(el=>el?.addEventListener('input',uF));}
+    function updateFilterControlsFromSelection(){ const o=canvas.getActiveObject(),pF=toolSettingsPanel.dataset.activeTool==='filters',c={gC:document.getElementById('grayscaleCheck'),sC:document.getElementById('sepiaCheck'),bC:document.getElementById('blackWhiteCheck'),bR:document.getElementById('brightnessRange'),cR:document.getElementById('contrastRange'),sR:document.getElementById('saturationRange'),bV:document.getElementById('brightnessValue'),cV:document.getElementById('contrastValue'),sV:document.getElementById('saturationValue'),rV:{b:0,c:0,s:0}};if(!pF||!o||o.type!=='image'){if(c.gC)c.gC.checked=false;if(c.sC)c.sC.checked=false;if(c.bC)c.bC.checked=false;['b','c','s'].forEach(t=>{if(c[`${t}R`])c[`${t}R`].value=c.rV[t];if(c[`${t}V`])c[`${t}V`].textContent=c.rV[t].toFixed(2);});return;}if(c.gC)c.gC.checked=false;if(c.sC)c.sC.checked=false;if(c.bC)c.bC.checked=false;['b','c','s'].forEach(t=>{if(c[`${t}R`])c[`${t}R`].value=c.rV[t];if(c[`${t}V`])c[`${t}V`].textContent=c.rV[t].toFixed(2);});(o.filters||[]).forEach(f=>{if(f.type==='Grayscale'&&c.gC)c.gC.checked=true;else if(f.type==='Sepia'&&c.sC)c.sC.checked=true;else if(f.type==='BlackWhite'&&c.bC)c.bC.checked=true;else if(f.type==='Brightness'&&c.bR){c.bR.value=f.brightness;if(c.bV)c.bV.textContent=f.brightness.toFixed(2);}else if(f.type==='Contrast'&&c.cR){c.cR.value=f.contrast;if(c.cV)c.cV.textContent=f.contrast.toFixed(2);}else if(f.type==='Saturation'&&c.sR){c.sR.value=f.saturation;if(c.sV)c.sV.textContent=f.saturation.toFixed(2);}}); }
+    window.applyEffect = function(eT){ const o=canvas.getActiveObject();if(!o||o.get('type')!=='image'){alert("Selecciona una imagen.");return;} if(!o.filters)o.filters=[];const fTM={b:fabric.Image.filters.Blur,p:fabric.Image.filters.Pixelate,n:fabric.Image.filters.Noise,i:fabric.Image.filters.Invert,h:fabric.Image.filters.HueRotation,m:fabric.Image.filters.Polaroid},sT=(Fc,op={})=>{const fi=o.filters.findIndex(f=>f instanceof Fc||f.type===Fc.prototype.type);if(fi===-1)o.filters.push(new Fc(op));else o.filters.splice(fi,1);};switch(eT){case'blur':sT(fTM.b,{blur:0.3});break;case'sharpen':o.filters.push(new fabric.Image.filters.Convolute({matrix:[0,-1,0,-1,5,-1,0,-1,0]}));break;case'edge':o.filters.push(new fabric.Image.filters.Convolute({matrix:[-1,-1,-1,-1,8,-1,-1,-1,-1]}));break;case'pixelate':sT(fTM.p,{blocksize:8});break;case'noise':sT(fTM.n,{noise:100});break;case'vignette':const vi=o.filters.findIndex(f=>f.type==='BlendColor'&&f.mode==='multiply');if(vi===-1)o.filters.push(new fabric.Image.filters.BlendColor({color:'rgba(0,0,0,0.3)',mode:'multiply'}));else o.filters.splice(vi,1);break;case'invert':sT(fTM.i);break;case'hue':sT(fTM.h,{rotation:0.5});break;case'mosaic':sT(fTM.m);break;} o.applyFilters();canvas.renderAll();updateFilterControlsFromSelection();}
+    window.clearAllFiltersAndEffects = function(){ const o=canvas.getActiveObject();if(o&&o.filters){o.filters=[];o.applyFilters();canvas.renderAll();}if(toolSettingsPanel.dataset.activeTool==='filters')updateFilterControlsFromSelection();}
+    function setupTextPanelListeners(){ const tI=document.getElementById('textInputPanel'),tC=document.getElementById('textColorPanel'),tF=document.getElementById('textFontPanel'),fS=document.getElementById('fontSizePanel'),bB=document.getElementById('boldTextPanel'),iB=document.getElementById('italicTextPanel'),uB=document.getElementById('underlineTextPanel');tI?.addEventListener('input',applyTextChangesFromPanel);tC?.addEventListener('input',applyTextChangesFromPanel);tF?.addEventListener('change',applyTextChangesFromPanel);fS?.addEventListener('input',applyTextChangesFromPanel);bB?.addEventListener('click',()=>{bB.classList.toggle('active');applyTextChangesFromPanel();});iB?.addEventListener('click',()=>{iB.classList.toggle('active');applyTextChangesFromPanel();});uB?.addEventListener('click',()=>{uB.classList.toggle('active');applyTextChangesFromPanel();});}
+    function applyTextChangesFromPanel(){ const o=canvas.getActiveObject();if(!o||o.type!=='i-text')return;const tI=document.getElementById('textInputPanel'),tC=document.getElementById('textColorPanel'),tF=document.getElementById('textFontPanel'),fS=document.getElementById('fontSizePanel'),bB=document.getElementById('boldTextPanel'),iB=document.getElementById('italicTextPanel'),uB=document.getElementById('underlineTextPanel');o.set({text:tI?.value||" ",fill:tC?.value||'#333333',fontFamily:tF?.value||'Arial',fontSize:parseInt(fS?.value,10)||30,fontWeight:bB?.classList.contains('active')?'bold':'normal',fontStyle:iB?.classList.contains('active')?'italic':'normal',underline:uB?.classList.contains('active')});canvas.renderAll();updateLayersList();}
+    function updateTextPanelFromSelection(){ const o=canvas.getActiveObject(),tPA=toolSettingsPanel.dataset.activeTool==='text',tI=document.getElementById('textInputPanel'),tC=document.getElementById('textColorPanel'),tF=document.getElementById('textFontPanel'),fS=document.getElementById('fontSizePanel'),fSV=document.getElementById('fontSizeValuePanel'),bB=document.getElementById('boldTextPanel'),iB=document.getElementById('italicTextPanel'),uB=document.getElementById('underlineTextPanel');if(!tPA||!tI)return;if(o&&o.type==='i-text'){tI.value=o.text;tC.value=o.fill;tF.value=o.fontFamily;fS.value=o.fontSize;if(fSV)fSV.textContent=o.fontSize;bB.classList.toggle('active',o.fontWeight==='bold');iB.classList.toggle('active',o.fontStyle==='italic');uB.classList.toggle('active',o.underline);}else{tI.value='';tC.value='#333333';tF.value='Arial';fS.value=30;if(fSV)fSV.textContent=30;bB?.classList.remove('active');iB?.classList.remove('active');uB?.classList.remove('active');}}
+    canvas.on('selection:created', updateTextPanelFromSelection); canvas.on('selection:updated', updateTextPanelFromSelection); canvas.on('selection:cleared', updateTextPanelFromSelection);
+    canvas.on('selection:created', updateFilterControlsFromSelection); canvas.on('selection:updated', updateFilterControlsFromSelection); canvas.on('selection:cleared', updateFilterControlsFromSelection);
+    function updateLayersList() {
+        const isMobile = document.body.classList.contains('mobile-layout');
+        let layersListContainer = isMobile ? mobileLayersContent.querySelector('#layersList') : document.getElementById('layersList');
+        if (!layersListContainer && isMobile && layersListMoved) {
+             layersListContainer = mobileLayersContent.querySelector('#layersList');
+        } else if (!layersListContainer && !isMobile && !layersListMoved) {
+             layersListContainer = document.getElementById('layersList');
+        }
+        if (!layersListContainer) { return; }
+        layersListContainer.innerHTML = '';
+        const objects = canvas.getObjects().slice();
+        objects.forEach((obj, index) => {
+            const layerItem = document.createElement('div');
+            layerItem.className = 'layer-item';
+            layerItem.fabricObject = obj; 
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'layer-item-name';
+            let layerName = `Capa ${objects.length - index}`; 
+            if (obj.type === 'i-text') { layerName = obj.text.substring(0, 15).trim() || `Texto`; }
+            else if (obj.type === 'image') { layerName = obj.name || `Imagen ${objects.length - index}`; }
+            else if (obj.isType('path')) { layerName = `Dibujo ${objects.length - index}`; }
+            nameSpan.textContent = layerName; nameSpan.title = layerName; 
+            const actionsDiv = document.createElement('div'); actionsDiv.className = 'layer-actions';
+            const btnUp = document.createElement('button'); btnUp.innerHTML = '↑'; btnUp.title = "Mover Arriba";
+            btnUp.onclick = (e) => { e.stopPropagation(); canvas.bringForward(obj); canvas.renderAll(); updateLayersList(); };
+            const btnDown = document.createElement('button'); btnDown.innerHTML = '↓'; btnDown.title = "Mover Abajo";
+            btnDown.onclick = (e) => { e.stopPropagation(); canvas.sendBackwards(obj); canvas.renderAll(); updateLayersList(); };
+            const btnDelete = document.createElement('button'); btnDelete.innerHTML = '🗑️'; btnDelete.title = "Eliminar"; btnDelete.className = 'delete-layer-btn';
+            btnDelete.onclick = (e) => { e.stopPropagation(); canvas.remove(obj); canvas.renderAll(); updateLayersList(); };
+            actionsDiv.appendChild(btnDown); actionsDiv.appendChild(btnUp); actionsDiv.appendChild(btnDelete);
+            layerItem.appendChild(nameSpan); layerItem.appendChild(actionsDiv);
+            if (canvas.getActiveObject() === obj) { layerItem.classList.add('active-layer'); }
+            layerItem.addEventListener('click', () => { canvas.setActiveObject(obj); canvas.renderAll(); });
+            layersListContainer.prepend(layerItem); 
+        });
+    }
+    canvas.on('object:added', updateLayersList); canvas.on('object:removed', updateLayersList); canvas.on('object:modified', updateLayersList);
+    canvas.on('selection:created', updateLayersList); canvas.on('selection:updated', updateLayersList); canvas.on('selection:cleared', updateLayersList);
+    // --- Manejo de Desplegables del Header ---
+    function toggleDropdown(menuId, event) {
+        event.stopPropagation(); const menu = document.getElementById(menuId); const isVisible = menu.style.display === 'block';
+        document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
+        if (!isVisible) { menu.style.display = 'block'; checkGoogleLoginPromptForDropdown(menu); }
+        else { removeGoogleLoginPrompt(menu); }
+    }
+    function checkGoogleLoginPromptForDropdown(menuElement) {
+        const googleDependentButtons = Array.from(menuElement.querySelectorAll('button')).filter(btn => btn.id.includes('Drive') || btn.id.includes('Photos'));
+        removeGoogleLoginPrompt(menuElement);
+        if (googleDependentButtons.length > 0 && !isUserSignedInWithGoogle()) { const promptMessage = document.createElement('p'); promptMessage.className = 'google-login-prompt'; promptMessage.innerHTML = 'Conéctate con Google.'; promptMessage.onclick = (e) => { e.stopPropagation(); googleSignIn(); }; const firstHr = menuElement.querySelector('hr'); if (firstHr) menuElement.insertBefore(promptMessage, firstHr); else menuElement.appendChild(promptMessage);}
+    }
+    function removeGoogleLoginPrompt(menuElement){
+        const existingMessage = menuElement.querySelector('.google-login-prompt'); if (existingMessage) existingMessage.remove();
+    }
+    document.addEventListener('click', (event) => {
+        if (!event.target.closest('.dropdown-menu') && !event.target.closest('.header-button-group > button')) { document.querySelectorAll('.dropdown-menu').forEach(m => { m.style.display = 'none'; removeGoogleLoginPrompt(m); });}
+    });
+    document.getElementById('headerUploadBtnToggle')?.addEventListener('click', (e) => toggleDropdown('uploadDropdownMenu', e));
+    document.getElementById('headerShareBtnToggle')?.addEventListener('click', (e) => toggleDropdown('shareDropdownMenu', e));
+    const uploadDriveBtn = document.getElementById('uploadDriveBtn');
+    const uploadPhotosBtn = document.getElementById('uploadPhotosBtn');
+    const shareDriveBtn = document.getElementById('shareDriveBtn');
+    const sharePhotosBtn = document.getElementById('sharePhotosBtn');
+
+    // Modificar estas acciones para que usen performGoogleAction
+    function performGoogleAction(actionName, callback) {
+      if (isUserSignedInWithGoogle()) {
+        if (actionName.includes("Drive") || actionName.includes("Photos")) {
+            if (gapiInited && gapiAccessToken) { // Esencial que GAPI esté listo Y tengamos token
+                if (gapi.client && typeof gapi.client.setToken === 'function') { // Doble check
+                    if(gapi.client.getToken()?.access_token !== gapiAccessToken) { // Asegurar que el token de GAPI es el actual
+                         gapi.client.setToken({ access_token: gapiAccessToken });
+                    }
+                } else {
+                    console.warn("gapi.client no disponible para setToken en performGoogleAction");
+                }
+                console.log(`Logueado y GAPI listo para: ${actionName}`);
+                if (typeof callback === 'function') callback();
+            } else {
+                console.warn(`Logueado pero GAPI/Token no listo para: ${actionName}. GAPI Inited: ${gapiInited}, AccessToken: ${!!gapiAccessToken}`);
+                window.pendingGoogleAction = { action: actionName, callback: callback };
+                // No abrir el modal de auth si ya está logueado, sino indicar que espere o reintente.
+                // O si el problema es que gapi no está listo, esperar que gapiLoaded lo resuelva.
+                alert("Las funciones de Google se están inicializando, por favor intente nuevamente en unos segundos.");
+            }
+        } else { // Acciones que no dependen de GAPI Picker, solo de login.
+            console.log(`Logueado, ejecutando (sin GAPI check): ${actionName}`);
+            if (typeof callback === 'function') callback();
+        }
+      } else {
+        console.log(`No logueado. Login para: ${actionName}`);
+        window.pendingGoogleAction = { action: actionName, callback: callback }; // Guardar la acción
+        openAuthModal(); // Pedir login
+      }
+    }
+
+    uploadDriveBtn?.addEventListener('click', () => { document.getElementById('uploadDropdownMenu').style.display = 'none'; performGoogleAction("importarDesdeDrive", () => { alert("[SIMULACIÓN] Lógica para Importar desde Drive."); console.log("gapiAccessToken:", gapiAccessToken);}); });
+    uploadPhotosBtn?.addEventListener('click', () => { document.getElementById('uploadDropdownMenu').style.display = 'none'; performGoogleAction("importarDesdePhotos", () => { alert("[SIMULACIÓN] Lógica para Importar desde Photos."); }); });
+    shareDriveBtn?.addEventListener('click', () => { document.getElementById('shareDropdownMenu').style.display = 'none'; performGoogleAction("guardarEnDrive", () => { alert("[SIMULACIÓN] Lógica para Guardar en Drive."); }); });
+    sharePhotosBtn?.addEventListener('click', () => { document.getElementById('shareDropdownMenu').style.display = 'none'; performGoogleAction("guardarEnPhotos", () => { alert("[SIMULACIÓN] Lógica para Guardar en Photos."); }); });
+
+    // --- Inicialización General ---
+    window.addEventListener('load', () => {
+        document.getElementById('googleSignInBtn')?.addEventListener('click', googleSignIn);
+        document.getElementById('googleSignOutBtn')?.addEventListener('click', googleSignOut);
+
+        setupToolButtons('.left-sidebar .tool-section:first-child', false);
+        checkMobileLayout();
+        updateUiWithAuth(); // Se llamará también desde gisLoaded si es necesario
+        setActiveTool('select');
+        updateLayersList();
+        adjustCanvasSize();
+        window.addEventListener('resize', () => {
+            checkMobileLayout();
+            adjustCanvasSize();
+        });
+        document.addEventListener('click', (e) => {
+            if (toolSettingsPanel.classList.contains('visible') &&
+                !toolSettingsPanel.contains(e.target) &&
+                !e.target.closest('.tool-btn') &&
+                !e.target.closest('.left-sidebar') &&
+                !e.target.closest('.mobile-toolbar')) {
+                hideToolSettings();
+            }
+        });
+    });
+    function adjustCanvasSize() {
+        const canvasArea = document.querySelector('.canvas-area');
+        if (!canvasArea) return;
+        let availableWidth = mainContentArea.offsetWidth - 20;
+        let availableHeight = mainContentArea.offsetHeight - document.getElementById('zoom_menu').offsetHeight - 30;
+        if (toolSettingsPanel.classList.contains('visible') && !document.body.classList.contains('mobile-layout')) {
+             availableWidth -= toolSettingsPanel.offsetWidth;
+        }
+        const aspectRatio = 16 / 9;
+        let newCanvasWidth = availableWidth;
+        let newCanvasHeight = newCanvasWidth / aspectRatio;
+        if (newCanvasHeight > availableHeight) {
+            newCanvasHeight = availableHeight;
+            newCanvasWidth = newCanvasHeight * aspectRatio;
+        }
+        canvas.setWidth(Math.max(newCanvasWidth, 200));
+        canvas.setHeight(Math.max(newCanvasHeight, 150));
+        canvas.calcOffset();
+        canvas.renderAll();
+    }
+    const zoomSlider = document.getElementById('zoomSlider'); const zoomValueEl = document.getElementById('zoomValue');
+    zoomSlider.addEventListener('input', () => { const s = parseFloat(zoomSlider.value); canvas.zoomToPoint(new fabric.Point(canvas.width / 2, canvas.height / 2), s); zoomValueEl.textContent = `${Math.round(s * 100)}%`; canvas.requestRenderAll();});
+
+    window.loadCatalog = function(assetType, categoryName = null) {
+        const isMobile = document.body.classList.contains('mobile-layout');
+        let catalogContainer;
+        if (isMobile) {
+            catalogContainer = mobileCatalogContent.querySelector('#catalogContainer');
+            if (!catalogContainer && mobileCatalogContent.children.length === 0 && catalogContainerMoved) {
+                catalogContainer = document.getElementById('catalogContainer');
+            } else if (!catalogContainer && mobileCatalogContent.children.length === 0 && !catalogContainerMoved) {
+                 const desktopContainer = document.getElementById('catalogContainer');
+                 if (desktopContainer) {
+                    mobileCatalogContent.appendChild(desktopContainer);
+                    catalogContainer = desktopContainer;
+                    catalogContainerMoved = true;
+                 }
+            }
+        } else {
+            catalogContainer = document.getElementById('catalogContainer');
+            if (!catalogContainer && catalogContainerMoved) {
+                 catalogContainer = mobileCatalogContent.querySelector('#catalogContainer');
+            }
+        }
+        if (!catalogContainer) {
+            if (isMobile && mobileCatalogContent) {
+                 const newCatalogContainer = document.createElement('div');
+                 newCatalogContainer.id = 'catalogContainer';
+                 newCatalogContainer.className = 'catalog-container';
+                 mobileCatalogContent.appendChild(newCatalogContainer);
+                 catalogContainer = newCatalogContainer;
+            } else { return; }
+        }
+        catalogContainer.innerHTML = '';
+        let itemsToShow = []; let basePath = ''; let isFrameCategory = false;
+        if (assetType === 'graphics' && categoryName) {
+            const categoryData = assetPaths.graphics[categoryName];
+            if (categoryData && categoryData.path && categoryData.files && Array.isArray(categoryData.files)) {
+                basePath = categoryData.path; itemsToShow = categoryData.files;
+                isFrameCategory = (categoryName === "Marcos");
+            } else { console.warn(`Categoría '${categoryName}' no encontrada o datos inválidos.`); }
+        }
+        if (itemsToShow.length === 0) { catalogContainer.innerHTML = '<p class="catalog-placeholder">No hay elementos en esta categoría.</p>'; return; }
+        itemsToShow.forEach(fileName => {
+            if (typeof fileName !== 'string' || fileName.trim() === '') { console.warn("Nombre de archivo inválido:", fileName); return; }
+            const fullPath = basePath + fileName;
+            const thumbnailDiv = document.createElement('div');
+            thumbnailDiv.className = 'thumbnail-item';
+            if (!isFrameCategory) thumbnailDiv.classList.add('graphic-thumbnail');
+            thumbnailDiv.title = fileName.split('.')[0].replace(/[_-]/g, ' ');
+            const img = document.createElement('img'); img.src = fullPath; img.alt = fileName;
+            img.onerror = () => { thumbnailDiv.innerHTML = `<small style="color:red; font-size:0.7em;">Error<br>${fileName}</small>`; };
+            thumbnailDiv.appendChild(img);
+            thumbnailDiv.addEventListener('click', () => {
+                addAssetToCanvas(fullPath, isFrameCategory);
+                if (isMobile && mobileSidePanel.classList.contains('visible')) { toggleMobileSidePanel(); }
+            });
+            catalogContainer.appendChild(thumbnailDiv);
+        });
+    };
+    window.addAssetToCanvas = function(imageUrl, isFrameAsset = false) {
+        fabric.Image.fromURL(imageUrl, (img) => {
+            if (!img) { alert('No se pudo cargar la imagen: ' + imageUrl); return; }
+            let targetWidth, targetHeight;
+            if (isFrameAsset) {
+                targetWidth = canvas.width; targetHeight = canvas.height;
+                img.scaleToWidth(targetWidth); if (img.getScaledHeight() > targetHeight) img.scaleToHeight(targetHeight);
+                img.set({ originX: 'center', originY: 'center', left: canvas.width / 2, top: canvas.height / 2, selectable: true, evented: true });
+                canvas.add(img); img.sendToBack();
+            } else {
+                targetWidth = canvas.width * 0.3; targetHeight = canvas.height * 0.3;
+                if (img.width > targetWidth || img.height > targetHeight) { const scaleFactor = Math.min(targetWidth / img.width, targetHeight / img.height); img.scale(scaleFactor); }
+                else if (img.width < 50 && img.height < 50) { img.scaleToWidth(80); }
+                img.set({ left: canvas.width / 2, top: canvas.height / 2, originX: 'center', originY: 'center', borderColor: 'var(--accent-primary)', cornerColor: 'var(--accent-primary)', cornerSize: 10, transparentCorners: false });
+                canvas.add(img);
+            }
+            canvas.setActiveObject(img); canvas.renderAll(); updateLayersList();
+        }, { crossOrigin: 'anonymous' });
+    };
+    function setupDrawListeners() { const dC=document.getElementById('drawColor'),dW=document.getElementById('drawWidth'),dWv=document.getElementById('drawWidthValue');if(dC){dC.value=canvas.freeDrawingBrush?.color||'#e03131';dC.addEventListener('input',(e)=>{if(canvas.isDrawingMode)canvas.freeDrawingBrush.color=e.target.value;});}if(dW){dW.value=canvas.freeDrawingBrush?.width||5;if(dWv)dWv.textContent=canvas.freeDrawingBrush?.width||5;dW.addEventListener('input',(e)=>{const nW=parseInt(e.target.value,10)||1;if(canvas.isDrawingMode)canvas.freeDrawingBrush.width=nW;if(dWv)dWv.textContent=nW;});}}
+
+</script>
+</body>
+</html>
