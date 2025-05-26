@@ -479,7 +479,7 @@
 <script>
   // --- Variables Globales ---
   let currentTool = 'select';
-  const GOOGLE_CLIENT_ID = "154978319000-v83riina3t9ofqqs0kuv4mlm5kn1a6fv.apps.googleusercontent.com" // ¡¡¡REEMPLAZA ESTO!!!
+  const GOOGLE_CLIENT_ID = "154978319000-v83riina3t9ofqqs0kuv4mlm5kn1a6fv.apps.googleusercontent.com" 
   const GOOGLE_SCOPES = 'email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/photoslibrary.readonly';
   // Las siguientes se inicializarán por las funciones de Google
   let googleUser = null;
@@ -567,7 +567,7 @@
   async function processAuthCode(code) {
     console.log("Enviando código de autorización al backend:", code);
     try {
-      const res = await fetch('http://localhost:8000/auth/google', { // Asegúrate que esta URL es correcta
+      const res = await fetch('https://winnerphoto-design-denver.onrender.com/auth/google', { // URL correcta entre comillas, luego la coma
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code }) // El backend espera un objeto { code: "..." }
